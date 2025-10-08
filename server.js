@@ -6,8 +6,6 @@ import { connectDB } from './config/database.js'
 import LineMessage from './models/LineMessage.js'
 import LineUser from './models/LineUser.js'
 import CustomerAccount from './models/CustomerAccount.js'
-import CodeRequest from './models/CodeRequest.js'
-import CodeRequest from './models/CodeRequest.js'
 
 // Load environment variables
 dotenv.config()
@@ -224,49 +222,6 @@ app.get('/api/messages', async (req, res) => {
 })
 
 // Check for expired code requests and notify users
-app.get('/api/code-requests/check-expiry', async (req, res) => {
-  try {
-    const now = new Date()
-    // Find all active code requests that have expired
-    const expiredRequests = await CodeRequest.find({
-      status: 'active',
-      expireDate: { $lt: now }
-    })
-
-    let notified = 0
-    for (const request of expiredRequests) {
-      // Send notification to user via LINE
-      try {
-        await lineClient.pushMessage({
-          to: request.userId,
-          messages: [
-            {
-              type: 'text',
-              text: `Your code request (${request.code}) has expired.`
-            }
-          ]
-        })
-        // Update status to notified
-        request.status = 'notified'
-        await request.save()
-        notified++
-      } catch (err) {
-        console.error(`Failed to notify user ${request.userId}:`, err)
-      }
-    }
-
-    res.json({
-      success: true,
-      expiredCount: expiredRequests.length,
-      notified
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
-  }
-})
 
 // Line webhook endpoint with enhanced error handling
 app.post(
@@ -554,7 +509,9 @@ setInterval(async () => {
           })
           account.status = 'expired'
           await account.save()
-          console.log(`Notified user ${account.userLineId} for expired license.`)
+          console.log(
+            `Notified user ${account.userLineId} for expired license.`
+          )
         }
       } catch (err) {
         console.error(`Failed to notify user ${account.userLineId}:`, err)
