@@ -478,15 +478,23 @@ process.on('SIGINT', () => {
 // Interval job: check for expired customer accounts every 5 minutes
 setInterval(async () => {
   try {
+    console.log('🔄 Starting interval job to check expired customer accounts...')
     const now = new Date()
+    console.log(`🕒 Current time: ${now.toISOString()}`)
+
     // Find all valid accounts that have expired
     const expiredAccounts = await CustomerAccount.find({
       status: 'valid',
       expireDate: { $exists: true }
     })
+    console.log(`📋 Found ${expiredAccounts.length} accounts to check.`)
 
     for (const account of expiredAccounts) {
       try {
+        console.log(
+          `🔍 Checking account: ${account.accountNumber}, expireDate: ${account.expireDate}`
+        )
+
         // Parse Thai date format
         const thaiDateParts = account.expireDate.split(' ')
         const [day, month, year] = thaiDateParts[0].split('/')
@@ -496,7 +504,11 @@ setInterval(async () => {
           `${gregorianYear}-${month}-${day}T${time}:00`
         )
 
+        console.log(`📅 Parsed expireDate: ${parsedExpireDate.toISOString()}`)
+
         if (parsedExpireDate < now) {
+          console.log(`⚠️ Account expired: ${account.accountNumber}`)
+
           // Notify user via LINE
           await lineClient.pushMessage({
             to: account.userLineId,
@@ -509,17 +521,18 @@ setInterval(async () => {
           })
           account.status = 'expired'
           await account.save()
-          console.log(
-            `Notified user ${account.userLineId} for expired license.`
-          )
+          console.log(`✅ Notified user ${account.userLineId} for expired license.`)
+        } else {
+          console.log(`✔️ Account is still valid: ${account.accountNumber}`)
         }
       } catch (err) {
-        console.error(`Failed to notify user ${account.userLineId}:`, err)
+        console.error(`❌ Failed to process account ${account.accountNumber}:`, err)
       }
     }
   } catch (error) {
-    console.error('Error in customer account expiry interval:', error)
+    console.error('❌ Error in customer account expiry interval:', error)
   }
+  console.log('🔄 Interval job completed.')
 }, 5 * 60 * 1000) // 5 minutes
 
-// Interval job: check for expired code requests every 5 minutes // 5 minutes
+// Interval job: check for expired code requests every 5 minutes
