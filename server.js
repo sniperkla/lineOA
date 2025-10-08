@@ -9,6 +9,19 @@ import LineUser from './models/LineUser.js'
 // Load environment variables
 dotenv.config()
 
+// Validate required environment variables
+if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+  console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is required but not set')
+  console.error('Please check your .env file and set the correct value')
+  process.exit(1)
+}
+
+if (!process.env.LINE_CHANNEL_SECRET) {
+  console.error('❌ LINE_CHANNEL_SECRET is required but not set')
+  console.error('Please check your .env file and set the correct value')
+  process.exit(1)
+}
+
 // Line Bot SDK configuration
 const lineConfig = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -20,13 +33,26 @@ const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: lineConfig.channelAccessToken
 })
 
+console.log('✅ Line Bot SDK configured successfully')
+console.log(`📋 Channel Secret: ${process.env.LINE_CHANNEL_SECRET.substring(0, 8)}...`)
+console.log(`📋 Access Token: ${process.env.LINE_CHANNEL_ACCESS_TOKEN.substring(0, 20)}...`)
+
 // Create Express app
 const app = express()
 const PORT = process.env.PORT || 4000
 
 // Middleware
 app.use(cors())
-app.use(express.json())
+
+// Apply express.json() to all routes except webhook
+app.use((req, res, next) => {
+  if (req.path === '/webhook') {
+    next()
+  } else {
+    express.json()(req, res, next)
+  }
+})
+
 app.use(express.urlencoded({ extended: true }))
 
 // Connect to MongoDB
@@ -39,6 +65,31 @@ app.get('/health', (req, res) => {
     service: 'Line OA Backend',
     timestamp: new Date().toISOString(),
     mongodb: 'connected'
+  })
+})
+
+// Configuration check endpoint
+app.get('/config-check', (req, res) => {
+  const config = {
+    hasChannelSecret: !!process.env.LINE_CHANNEL_SECRET,
+    hasAccessToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    hasMongoUri: !!process.env.MONGODB_URI,
+    port: process.env.PORT || 4000,
+    nodeEnv: process.env.NODE_ENV || 'development',
+    channelSecretLength: process.env.LINE_CHANNEL_SECRET?.length || 0,
+    accessTokenLength: process.env.LINE_CHANNEL_ACCESS_TOKEN?.length || 0
+  }
+  
+  res.json({
+    status: 'Configuration Check',
+    config,
+    warnings: [
+      !config.hasChannelSecret && 'LINE_CHANNEL_SECRET is missing',
+      !config.hasAccessToken && 'LINE_CHANNEL_ACCESS_TOKEN is missing',
+      !config.hasMongoUri && 'MONGODB_URI is missing',
+      config.channelSecretLength < 30 && 'LINE_CHANNEL_SECRET seems too short',
+      config.accessTokenLength < 100 && 'LINE_CHANNEL_ACCESS_TOKEN seems too short'
+    ].filter(Boolean)
   })
 })
 
@@ -161,19 +212,43 @@ app.get('/api/messages', async (req, res) => {
   }
 })
 
-// Line webhook endpoint
-app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
+// Line webhook endpoint with enhanced error handling
+app.post('/webhook', (req, res, next) => {
+  console.log('📨 Webhook request received')
+  console.log('Headers:', JSON.stringify(req.headers, null, 2))
+  console.log('Body type:', typeof req.body)
+  console.log('Content-Type:', req.headers['content-type'])
+  
+  // Validate environment variables
+  if (!process.env.LINE_CHANNEL_SECRET) {
+    console.error('❌ LINE_CHANNEL_SECRET is not set')
+    return res.status(500).json({ error: 'LINE_CHANNEL_SECRET not configured' })
+  }
+  
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is not set')
+    return res.status(500).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' })
+  }
+  
+  next()
+}, line.middleware(lineConfig), async (req, res) => {
   try {
-    console.log('📨 Webhook received:', JSON.stringify(req.body, null, 2))
+    console.log('✅ Signature validation passed')
+    console.log('📨 Webhook body:', JSON.stringify(req.body, null, 2))
     
-    const events = req.body.events
+    const events = req.body.events || []
+    
+    if (events.length === 0) {
+      console.log('ℹ️ No events to process')
+      return res.status(200).json({ success: true, message: 'No events' })
+    }
     
     // Process each event
     await Promise.all(events.map(handleEvent))
     
     res.status(200).json({ success: true })
   } catch (error) {
-    console.error('❌ Webhook error:', error)
+    console.error('❌ Webhook processing error:', error)
     res.status(500).json({
       success: false,
       error: error.message
