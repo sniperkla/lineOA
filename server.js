@@ -527,23 +527,35 @@ setInterval(async () => {
     // Find all valid accounts that have expired
     const expiredAccounts = await CustomerAccount.find({
       status: 'valid',
-      expireDate: { $lt: now }
+      expireDate: { $exists: true }
     })
+
     for (const account of expiredAccounts) {
       try {
-        // Use account.userLineId or similar for LINE user ID
-        await lineClient.pushMessage({
-          to: account.userLineId,
-          messages: [
-            {
-              type: 'text',
-              text: `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
-            }
-          ]
-        })
-        account.status = 'expired'
-        await account.save()
-        console.log(`Notified user ${account.userLineId} for expired license.`)
+        // Parse Thai date format
+        const thaiDateParts = account.expireDate.split(' ')
+        const [day, month, year] = thaiDateParts[0].split('/')
+        const time = thaiDateParts[1]
+        const gregorianYear = parseInt(year) - 543
+        const parsedExpireDate = new Date(
+          `${gregorianYear}-${month}-${day}T${time}:00`
+        )
+
+        if (parsedExpireDate < now) {
+          // Notify user via LINE
+          await lineClient.pushMessage({
+            to: account.userLineId,
+            messages: [
+              {
+                type: 'text',
+                text: `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
+              }
+            ]
+          })
+          account.status = 'expired'
+          await account.save()
+          console.log(`Notified user ${account.userLineId} for expired license.`)
+        }
       } catch (err) {
         console.error(`Failed to notify user ${account.userLineId}:`, err)
       }
@@ -551,6 +563,6 @@ setInterval(async () => {
   } catch (error) {
     console.error('Error in customer account expiry interval:', error)
   }
-}, 5000) // 5 minutes
+}, 5 * 60 * 1000) // 5 minutes
 
 // Interval job: check for expired code requests every 5 minutes // 5 minutes
