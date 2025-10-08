@@ -55,7 +55,10 @@ const lineMessageSchema = new mongoose.Schema({
   metadata: {
     replyToken: String,
     source: {
-      type: String, // user, group, room
+      type: {
+        type: String, // user, group, room
+        default: 'user'
+      },
       userId: String,
       groupId: String,
       roomId: String
