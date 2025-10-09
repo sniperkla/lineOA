@@ -1,16 +1,16 @@
 import express from 'express'
-import * as line from '@line/bot-sdk'
 import dotenv from 'dotenv'
 import cors from 'cors'
 import { connectDB } from './config/database.js'
-import LineMessage from './models/LineMessage.js'
 import LineUser from './models/LineUser.js'
 import CustomerAccount from './models/CustomerAccount.js'
 import fetch from 'node-fetch'
 
 // Load environment variables
 dotenv.config()
-
+const express = require('express')
+const app = express()
+const port = process.env.PORT || 4000
 // Validate required environment variables
 if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
   console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is required but not set')
@@ -47,8 +47,7 @@ console.log(
 )
 
 // Create Express app
-const app = express()
-const PORT = process.env.PORT
+
 // Middleware
 app.use(cors())
 // Apply express.json() to all routes except webhook
@@ -182,37 +181,6 @@ app.get('/api/users/:userId/messages', async (req, res) => {
 })
 
 // Get all messages
-app.get('/api/messages', async (req, res) => {
-  try {
-    const { limit = 100, skip = 0 } = req.query
-
-    const messages = await LineMessage.find()
-      .sort({ timestamp: -1 })
-      .limit(parseInt(limit))
-      .skip(parseInt(skip))
-
-    const total = await LineMessage.countDocuments()
-
-    res.json({
-      success: true,
-      data: {
-        messages,
-        pagination: {
-          total,
-          limit: parseInt(limit),
-          skip: parseInt(skip),
-          hasMore: parseInt(skip) + messages.length < total
-        }
-      }
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
-  }
-})
-
 // Check for expired code requests and notify users
 
 // Line webhook endpoint with enhanced error handling
@@ -477,12 +445,8 @@ async function handleMessageEvent(event, profile) {
   // }
 
   // Start server
-  app.listen(PORT, () => {
+  app.listen(port, () => {
     console.log('🚀 Line OA Backend Server Started')
-    console.log(`📡 Server running on port ${PORT}`)
-    console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
-    console.log(`💚 Health check: http://localhost:${PORT}/health`)
-    console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
     console.log('\n⚡ Ready to receive Line webhooks!')
   })
 
