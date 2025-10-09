@@ -52,13 +52,6 @@ const PORT = process.env.PORT
 // Middleware
 app.use(cors())
 // Apply express.json() to all routes except webhook
-app.use((req, res, next) => {
-  if (req.path === '/webhook') {
-    next()
-  } else {
-    express.json()(req, res, next)
-  }
-})
 
 app.use(express.urlencoded({ extended: true }))
 
