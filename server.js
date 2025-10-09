@@ -48,8 +48,7 @@ console.log(
 
 // Create Express app
 const app = express()
-const PORT = process.env.PORT || 4000
-
+const PORT = process.env.PORT || 4100
 // Middleware
 app.use(cors())
 
