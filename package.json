@@ -9,16 +9,22 @@
     "dev": "nodemon server.js",
     "test": "node test-webhook.js"
   },
-  "keywords": ["line", "webhook", "messaging", "mongodb"],
+  "keywords": [
+    "line",
+    "webhook",
+    "messaging",
+    "mongodb"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@line/bot-sdk": "^9.3.0",
+    "@line/bot-sdk": "^10.3.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^8.6.3",
-    "dotenv": "^16.4.5",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

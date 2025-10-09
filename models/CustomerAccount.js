@@ -16,7 +16,7 @@ const customerAccountSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['valid', 'expired', 'invalid', 'suspended'],
+      enum: ['valid', 'expired', 'invalid', 'suspended', 'nearly_expired'],
       default: 'valid'
     },
     platform: {
@@ -42,6 +42,18 @@ const customerAccountSchema = new mongoose.Schema(
     adminGenerated: {
       type: Boolean,
       default: false
+    },
+    notified: {
+      type: Boolean,
+      default: false
+    },
+    userLineId: {
+      type: String,
+      default: false
+    },
+    lastNearlyExpiredNotifiedAt: {
+      type: Date,
+      default: null
     }
   },
   {

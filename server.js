@@ -6,6 +6,7 @@ import { connectDB } from './config/database.js'
 import LineMessage from './models/LineMessage.js'
 import LineUser from './models/LineUser.js'
 import CustomerAccount from './models/CustomerAccount.js'
+import fetch from 'node-fetch'
 
 // Load environment variables
 dotenv.config()
@@ -95,7 +96,7 @@ app.get('/config-check', (req, res) => {
       !config.hasChannelSecret && 'LINE_CHANNEL_SECRET is missing',
       !config.hasAccessToken && 'LINE_CHANNEL_ACCESS_TOKEN is missing',
       !config.hasMongoUri && 'MONGODB_URI is missing',
-      config.channelSecretLength < 30 && 'LINE_CHANNEL_SECRET seems too short',
+      config.channelSecretLength < 30 && 'LINE_CHANNEL_SECRET seems tooshort',
       config.accessTokenLength < 100 &&
         'LINE_CHANNEL_ACCESS_TOKEN seems too short'
     ].filter(Boolean)
@@ -372,6 +373,18 @@ async function handleMessageEvent(event, profile) {
   const messageText = event.message.text
   const messageId = event.message.id
   const timestamp = new Date(event.timestamp)
+  console.log('🔢 Extracted numbers from message:', userId)
+
+  // Extract numbers from user input and log if length > 4
+  const matches = messageText.match(/\d+/g)
+  if (matches) {
+    console.log('🔢 Extracted numbers from message:', matches)
+    matches.forEach((num) => {
+      if (num.length > 4) {
+        console.log(`Extracted number > 4 digits: ${num}`)
+      }
+    })
+  }
 
   console.log(`💬 Message from ${userId}: "${messageText}"`)
 
@@ -425,13 +438,15 @@ async function handleMessageEvent(event, profile) {
       type: 'text',
       text: responseText
     }
-
+    const botInfoMessage = {
+      type: 'text',
+      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ ไม่ใช่เจ้าหน้าที่จริง หากต้องการติดต่อเจ้าหน้าที่ กรุณาแจ้งข้อความไว้ได้เลยครับ'
+    }
     await lineClient.replyMessage({
       replyToken: event.replyToken,
-      messages: [replyMessage]
+      messages: [replyMessage, botInfoMessage]
     })
-
-    console.log('✅ Reply sent to user')
+    console.log('✅ Reply and bot info sent to user')
   } catch (error) {
     console.error('❌ Error handling message event:', error)
 
@@ -475,64 +490,193 @@ process.on('SIGINT', () => {
   process.exit(0)
 })
 
-// Interval job: check for expired customer accounts every 5 minutes
+// Interval job: notify users for expired customer accounts every 5 minutes
 setInterval(async () => {
   try {
-    console.log('🔄 Starting interval job to check expired customer accounts...')
-    const now = new Date()
-    console.log(`🕒 Current time: ${now.toISOString()}`)
-
-    // Find all valid accounts that have expired
-    const expiredAccounts = await CustomerAccount.find({
+    console.log(
+      '🔄 Starting interval job to notify expired customer accounts...'
+    )
+    const checkPreValid = await CustomerAccount.find({
       status: 'valid',
-      expireDate: { $exists: true }
+      userLineId: { $exists: true, $ne: '' },
+      notified: true
     })
-    console.log(`📋 Found ${expiredAccounts.length} accounts to check.`)
-
-    for (const account of expiredAccounts) {
-      try {
-        console.log(
-          `🔍 Checking account: ${account.accountNumber}, expireDate: ${account.expireDate}`
-        )
-
-        // Parse Thai date format
-        const thaiDateParts = account.expireDate.split(' ')
-        const [day, month, year] = thaiDateParts[0].split('/')
-        const time = thaiDateParts[1]
-        const gregorianYear = parseInt(year) - 543
-        const parsedExpireDate = new Date(
-          `${gregorianYear}-${month}-${day}T${time}:00`
-        )
-
-        console.log(`📅 Parsed expireDate: ${parsedExpireDate.toISOString()}`)
-
-        if (parsedExpireDate < now) {
-          console.log(`⚠️ Account expired: ${account.accountNumber}`)
-
-          // Notify user via LINE
-          await lineClient.pushMessage({
-            to: account.userLineId,
-            messages: [
-              {
-                type: 'text',
-                text: `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
-              }
-            ]
-          })
-          account.status = 'expired'
-          await account.save()
-          console.log(`✅ Notified user ${account.userLineId} for expired license.`)
-        } else {
-          console.log(`✔️ Account is still valid: ${account.accountNumber}`)
+    if (checkPreValid) {
+      for (const account of checkPreValid) {
+        try {
+          await CustomerAccount.updateOne(
+            { _id: account._id, status: 'valid', notified: true },
+            { $set: { notified: false } }
+          )
+          console.log(
+            `✅ Updated account ${account.accountNumber} status back to unnotified.`
+          )
+        } catch (err) {
+          console.error(
+            `❌ Failed to update account ${account.accountNumber}:`,
+            err
+          )
         }
+      }
+    }
+    const expiredOrSuspendedAccounts = await CustomerAccount.find({
+      status: { $in: ['expired', 'suspended'] },
+      userLineId: { $exists: true, $ne: '' },
+      $or: [
+        { lastNotifiedStatus: { $ne: 'expired' }, status: 'expired' },
+        { lastNotifiedStatus: { $ne: 'suspended' }, status: 'suspended' }
+      ],
+      notified: false
+    })
+    console.log(
+      `📋 Found ${expiredOrSuspendedAccounts.length} expired or suspended accounts to notify.`
+    )
+
+    for (const account of expiredOrSuspendedAccounts) {
+      try {
+        if (!account.userLineId || typeof account.userLineId !== 'string') {
+          console.warn(
+            `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
+          )
+          continue
+        }
+        let notifyText = ''
+        if (account.status === 'expired') {
+          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
+        } else if (account.status === 'suspended') {
+          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ กรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม`
+        }
+        console.log(
+          `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
+        )
+        const url = 'https://api.line.me/v2/bot/message/push'
+        const body = {
+          to: account.userLineId,
+          messages: [
+            {
+              type: 'text',
+              text: notifyText
+            }
+          ]
+        }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+          },
+          body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`LINE API error: ${response.status} - ${errorText}`)
+        }
+        account.notified = true
+        account.lastNotifiedStatus = account.status
+        await account.save()
+        console.log(
+          `✅ Notified user ${account.userLineId} for ${account.status} license.`
+        )
       } catch (err) {
-        console.error(`❌ Failed to process account ${account.accountNumber}:`, err)
+        console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
+        console.error(
+          `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
+        )
+      }
+    }
+
+    const notifyStatuses = ['expired', 'suspended', 'nearly_expired']
+    const accountsToNotify = await CustomerAccount.find({
+      status: { $in: notifyStatuses },
+      userLineId: { $exists: true, $ne: '' },
+      $or: [
+        { status: { $in: ['expired', 'suspended'] }, notified: { $ne: true } },
+        {
+          status: 'nearly_expired',
+          $or: [
+            { lastNearlyExpiredNotifiedAt: { $exists: false } },
+            {
+              lastNearlyExpiredNotifiedAt: {
+                $lt: new Date(new Date().setHours(0, 0, 0, 0))
+              }
+            }
+          ]
+        }
+      ]
+    })
+    console.log(
+      `📋 Found ${
+        accountsToNotify.length
+      } accounts to notify for statuses: ${notifyStatuses.join(', ')}.`
+    )
+
+    for (const account of accountsToNotify) {
+      try {
+        if (!account.userLineId || typeof account.userLineId !== 'string') {
+          console.warn(
+            `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
+          )
+          continue
+        }
+        let notifyText = ''
+        if (account.status === 'expired') {
+          notifyText = `⏰ แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว ❌\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+        } else if (account.status === 'suspended') {
+          notifyText = `🚫 แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ ⚠️\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม 📞`
+        } else if (account.status === 'nearly_expired') {
+          let daysLeft = 3
+          if (account.expireDate) {
+            const now = new Date()
+            const expireDate = new Date(account.expireDate)
+            daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
+            if (daysLeft > 3) daysLeft = 3
+            if (daysLeft < 1) daysLeft = 1
+          }
+          notifyText = `⚠️ แจ้งเตือน: License ของคุณ (${account.license}) กำลังจะหมดอายุในอีกไม่เกิน ${daysLeft} วัน ⏳\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+        }
+        console.log(
+          `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
+        )
+        const url = 'https://api.line.me/v2/bot/message/push'
+        const body = {
+          to: account.userLineId,
+          messages: [
+            {
+              type: 'text',
+              text: notifyText
+            }
+          ]
+        }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+          },
+          body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`LINE API error: ${response.status} - ${errorText}`)
+        }
+        if (account.status === 'nearly_expired') {
+          account.lastNearlyExpiredNotifiedAt = new Date()
+        } else {
+          account.notified = true
+        }
+        await account.save()
+        console.log(
+          `✅ Notified user ${account.userLineId} for ${account.status} license.`
+        )
+      } catch (err) {
+        console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
+        console.error(
+          `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
+        )
       }
     }
   } catch (error) {
-    console.error('❌ Error in customer account expiry interval:', error)
+    console.error('❌ Error in customer account notification interval:', error)
   }
   console.log('🔄 Interval job completed.')
-}, 5 * 60 * 1000) // 5 minutes
-
-// Interval job: check for expired code requests every 5 minutes
+}, 10000) // 5 minutes
