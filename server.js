@@ -378,7 +378,6 @@ async function handleMessageEvent(event, profile) {
   // Extract numbers from user input and log if length > 4
   const matches = messageText.match(/\d+/g)
   if (matches) {
-    console.log('🔢 Extracted numbers from message:', matches)
     matches.forEach((num) => {
       if (num.length > 4) {
         console.log(`Extracted number > 4 digits: ${num}`)
