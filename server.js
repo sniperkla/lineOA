@@ -486,7 +486,7 @@ async function handleMessageEvent(event, profile) {
   // Start server
   app.listen(PORT, () => {
     console.log('🚀 Line OA Backend Server Started')
-  console.log(`📡 Server running on port ${PORT || 4100}`)
+    console.log(`📡 Server running on port ${PORT}`)
     console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
     console.log(`💚 Health check: http://localhost:${PORT}/health`)
     console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
