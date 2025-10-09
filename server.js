@@ -48,10 +48,9 @@ console.log(
 
 // Create Express app
 const app = express()
-const PORT = process.env.PORT || 4100
+const PORT = process.env.PORT
 // Middleware
 app.use(cors())
-
 // Apply express.json() to all routes except webhook
 app.use((req, res, next) => {
   if (req.path === '/webhook') {
@@ -487,7 +486,7 @@ async function handleMessageEvent(event, profile) {
   // Start server
   app.listen(PORT, () => {
     console.log('🚀 Line OA Backend Server Started')
-    console.log(`📡 Server running on port ${PORT}`)
+  console.log(`📡 Server running on port ${PORT || 4100}`)
     console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
     console.log(`💚 Health check: http://localhost:${PORT}/health`)
     console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
