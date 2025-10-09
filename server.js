@@ -378,11 +378,31 @@ async function handleMessageEvent(event, profile) {
   // Extract numbers from user input and log if length > 4
   const matches = messageText.match(/\d+/g)
   if (matches) {
-    matches.forEach((num) => {
+    for (const num of matches) {
       if (num.length > 4) {
         console.log(`Extracted number > 4 digits: ${num}`)
+        // Check if number matches any accountNumber in CustomerAccount
+        const account = await CustomerAccount.findOne({ accountNumber: num })
+        if (account) {
+          // Store userId in CustomerAccount
+          account.userLineId = userId
+          await account.save()
+          console.log(
+            `Stored userId ${userId} in CustomerAccount for accountNumber ${num}`
+          )
+          // Send confirmation message to customer
+          await lineClient.replyMessage({
+            replyToken: event.replyToken,
+            messages: [
+              {
+                type: 'text',
+                text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้วครับ`
+              }
+            ]
+          })
+        }
       }
-    })
+    }
   }
 
   console.log(`💬 Message from ${userId}: "${messageText}"`)
