@@ -701,5 +701,5 @@ async function handleMessageEvent(event, profile) {
       )
     }
     console.log('🔄 Interval job completed.')
-  }, 10000) // 5 minutes
+  }, 15 * 60 * 1000) // 15 minutes
 }
