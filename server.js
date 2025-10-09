@@ -1,16 +1,14 @@
-import express from 'express'
-import dotenv from 'dotenv'
-import cors from 'cors'
-import { connectDB } from './config/database.js'
-import LineUser from './models/LineUser.js'
-import CustomerAccount from './models/CustomerAccount.js'
-import fetch from 'node-fetch'
+const express = require('express')
+const dotenv = require('dotenv')
+const cors = require('cors')
+const { connectDB } = require('./config/database.js')
+const LineUser = require('./models/LineUser.js')
+const CustomerAccount = require('./models/CustomerAccount.js')
+const line = require('@line/bot-sdk')
 
 // Load environment variables
 dotenv.config()
-const express = require('express')
-const app = express()
-const port = process.env.PORT || 4000
+
 // Validate required environment variables
 if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
   console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is required but not set')
@@ -47,6 +45,8 @@ console.log(
 )
 
 // Create Express app
+const app = express()
+const PORT = process.env.PORT
 
 // Middleware
 app.use(cors())
@@ -73,7 +73,7 @@ app.get('/config-check', (req, res) => {
     hasChannelSecret: !!process.env.LINE_CHANNEL_SECRET,
     hasAccessToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
     hasMongoUri: !!process.env.MONGODB_URI,
-    port: process.env.PORT || 4000,
+    port: PORT,
     nodeEnv: process.env.NODE_ENV || 'development',
     channelSecretLength: process.env.LINE_CHANNEL_SECRET?.length || 0,
     accessTokenLength: process.env.LINE_CHANNEL_ACCESS_TOKEN?.length || 0
@@ -445,8 +445,12 @@ async function handleMessageEvent(event, profile) {
   // }
 
   // Start server
-  app.listen(port, () => {
+  app.listen(PORT, () => {
     console.log('🚀 Line OA Backend Server Started')
+    console.log(`📡 Server running on port ${PORT}`)
+    console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
+    console.log(`💚 Health check: http://localhost:${PORT}/health`)
+    console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
     console.log('\n⚡ Ready to receive Line webhooks!')
   })
 

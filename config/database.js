@@ -1,8 +1,8 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose')
 
 let isConnected = false
 
-export const connectDB = async () => {
+const connectDB = async () => {
   if (isConnected) {
     console.log('✅ Using existing MongoDB connection')
     return
@@ -42,7 +42,7 @@ export const connectDB = async () => {
   }
 }
 
-export const disconnectDB = async () => {
+const disconnectDB = async () => {
   if (!isConnected) {
     return
   }
@@ -55,3 +55,5 @@ export const disconnectDB = async () => {
     console.error('❌ Error disconnecting from MongoDB:', error)
   }
 }
+
+module.exports = { connectDB, disconnectDB }

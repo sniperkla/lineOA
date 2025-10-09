@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose')
 
 const lineUserSchema = new mongoose.Schema({
   // Line User ID (unique identifier)
@@ -115,4 +115,4 @@ lineUserSchema.statics.findOrCreate = async function(userId, profileData = {}) {
   return user
 }
 
-export default mongoose.model('LineUser', lineUserSchema)
+module.exports = mongoose.model('LineUser', lineUserSchema)
