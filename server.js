@@ -601,6 +601,11 @@ setInterval(async () => {
             // Adjust for Thai Buddhist calendar (subtract 543 years if year > 2500)
             if (expireDate.getFullYear() > 2500) {
               expireDate.setFullYear(expireDate.getFullYear() - 543)
+              // Swap month and day for correct DD/MM interpretation
+              const tempMonth = expireDate.getMonth()
+              const tempDate = expireDate.getDate()
+              expireDate.setMonth(tempDate - 1)
+              expireDate.setDate(tempMonth + 1)
             }
             console.log('adjusted expireDate:', expireDate)
             daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
