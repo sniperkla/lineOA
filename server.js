@@ -509,11 +509,87 @@ setInterval(async () => {
           )
           continue
         }
-        let notifyText = ''
+        let messageContent = {}
         if (account.status === 'expired') {
-          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
+          messageContent = {
+            type: 'flex',
+            altText: 'แจ้งเตือน: License หมดอายุ',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📅 แจ้งเตือนสถานะ License',
+                    weight: 'bold',
+                    size: 'lg',
+                    color: '#FF0000'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'กรุณาติดต่อทีมงานเพื่อต่ออายุโดยด่วน',
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    margin: 'lg',
+                    size: 'sm',
+                    color: '#888888'
+                  }
+                ]
+              }
+            }
+          }
         } else if (account.status === 'suspended') {
-          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ กรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม`
+          messageContent = {
+            type: 'flex',
+            altText: 'แจ้งเตือน: License ถูกระงับ',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '🚫 แจ้งเตือนสถานะ License',
+                    weight: 'bold',
+                    size: 'lg',
+                    color: '#FF6600'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'กรุณาติดต่อทีมงานเพื่อตรวจสอบและแก้ไข',
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    margin: 'lg',
+                    size: 'sm',
+                    color: '#888888'
+                  }
+                ]
+              }
+            }
+          }
         }
         console.log(
           `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
@@ -521,12 +597,7 @@ setInterval(async () => {
         const url = 'https://api.line.me/v2/bot/message/push'
         const body = {
           to: account.userLineId,
-          messages: [
-            {
-              type: 'text',
-              text: notifyText
-            }
-          ]
+          messages: [messageContent]
         }
         const response = await fetch(url, {
           method: 'POST',
@@ -587,11 +658,87 @@ setInterval(async () => {
           )
           continue
         }
-        let notifyText = ''
+        let messageContent = {}
         if (account.status === 'expired') {
-          notifyText = `⏰ แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว ❌\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+          messageContent = {
+            type: 'flex',
+            altText: 'แจ้งเตือน: License หมดอายุ',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📅 แจ้งเตือนสถานะ License',
+                    weight: 'bold',
+                    size: 'lg',
+                    color: '#FF0000'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'กรุณาติดต่อทีมงานเพื่อต่ออายุโดยด่วน',
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    margin: 'lg',
+                    size: 'sm',
+                    color: '#888888'
+                  }
+                ]
+              }
+            }
+          }
         } else if (account.status === 'suspended') {
-          notifyText = `🚫 แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ ⚠️\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม 📞`
+          messageContent = {
+            type: 'flex',
+            altText: 'แจ้งเตือน: License ถูกระงับ',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '🚫 แจ้งเตือนสถานะ License',
+                    weight: 'bold',
+                    size: 'lg',
+                    color: '#FF6600'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'กรุณาติดต่อทีมงานเพื่อตรวจสอบและแก้ไข',
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    margin: 'lg',
+                    size: 'sm',
+                    color: '#888888'
+                  }
+                ]
+              }
+            }
+          }
         } else if (account.status === 'nearly_expired') {
           let daysLeft = 3
           if (account.expireDate) {
@@ -613,7 +760,45 @@ setInterval(async () => {
             if (daysLeft > 3) daysLeft = 3
             if (daysLeft < 1) daysLeft = 1
           }
-          notifyText = `⚠️ แจ้งเตือน: License ของคุณ (${account.license}) กำลังจะหมดอายุในอีกไม่เกิน ${daysLeft} วัน ⏳\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+          messageContent = {
+            type: 'flex',
+            altText: 'แจ้งเตือน: License ใกล้หมดอายุ',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '⏰ แจ้งเตือนสถานะ License',
+                    weight: 'bold',
+                    size: 'lg',
+                    color: '#FFA500'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณสำหรับ ${account.license} จะหมดอายุในอีก ${daysLeft} วัน`,
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'กรุณาติดต่อทีมงานเพื่อต่ออายุก่อนถึงกำหนด',
+                    margin: 'md',
+                    wrap: true
+                  },
+                  {
+                    type: 'text',
+                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    margin: 'lg',
+                    size: 'sm',
+                    color: '#888888'
+                  }
+                ]
+              }
+            }
+          }
         }
         console.log(
           `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
@@ -621,12 +806,7 @@ setInterval(async () => {
         const url = 'https://api.line.me/v2/bot/message/push'
         const body = {
           to: account.userLineId,
-          messages: [
-            {
-              type: 'text',
-              text: notifyText
-            }
-          ]
+          messages: [messageContent]
         }
         const response = await fetch(url, {
           method: 'POST',
