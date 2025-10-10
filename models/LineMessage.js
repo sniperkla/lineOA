@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const lineMessageSchema = new mongoose.Schema({
   // Line User ID (unique identifier from Line)
@@ -102,4 +102,4 @@ lineMessageSchema.statics.getUserHistory = async function(userId, limit = 50) {
     .limit(limit)
 }
 
-module.exports = mongoose.model('LineMessage', lineMessageSchema)
+export default mongoose.model('LineMessage', lineMessageSchema)

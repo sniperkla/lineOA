@@ -1,11 +1,11 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
+import crypto from 'crypto'
 import { connectDB } from './config/database.js'
 import LineUser from './models/LineUser.js'
 import CustomerAccount from './models/CustomerAccount.js'
 import fetch from 'node-fetch'
-import * as line from '@line/bot-sdk'
 
 // Load environment variables
 dotenv.config()
@@ -23,27 +23,53 @@ if (!process.env.LINE_CHANNEL_SECRET) {
   process.exit(1)
 }
 
-// Line Bot SDK configuration
-const lineConfig = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.LINE_CHANNEL_SECRET
+// Function to verify LINE signature
+function verifySignature(body, signature, channelSecret) {
+  const hash = crypto.createHmac('sha256', channelSecret).update(body, 'utf8').digest('base64')
+  return hash === signature
 }
 
-// Create Line client
-const lineClient = new line.messagingApi.MessagingApiClient({
-  channelAccessToken: lineConfig.channelAccessToken
-})
+// Function to get user profile
+async function getUserProfile(userId) {
+  const fetch = (await import('node-fetch')).default
+  const response = await fetch(`https://api.line.me/v2/bot/profile/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+    }
+  })
+  if (response.ok) {
+    return await response.json()
+  }
+  return null
+}
 
-console.log('✅ Line Bot SDK configured successfully')
-console.log(
-  `📋 Channel Secret: ${process.env.LINE_CHANNEL_SECRET.substring(0, 8)}...`
-)
-console.log(
-  `📋 Access Token: ${process.env.LINE_CHANNEL_ACCESS_TOKEN.substring(
-    0,
-    20
-  )}...`
-)
+// Function to reply message
+async function replyMessage(replyToken, messages) {
+  const fetch = (await import('node-fetch')).default
+  const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+    },
+    body: JSON.stringify({ replyToken, messages })
+  })
+  return response
+}
+
+// Function to push message
+async function pushMessage(to, messages) {
+  const fetch = (await import('node-fetch')).default
+  const response = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+    },
+    body: JSON.stringify({ to, messages })
+  })
+  return response
+}
 
 // Create Express app
 const app = express()
@@ -95,147 +121,139 @@ app.get('/config-check', (req, res) => {
 })
 
 // Get user statistics
-app.get('/api/users/stats', async (req, res) => {
-  try {
-    const totalUsers = await LineUser.countDocuments()
-    const activeUsers = await LineUser.countDocuments({ isFriend: true })
-    const totalMessages = await LineMessage.countDocuments()
+// app.get('/api/users/stats', async (req, res) => {
+//   try {
+//     const totalUsers = await LineUser.countDocuments()
+//     const activeUsers = await LineUser.countDocuments({ isFriend: true })
+//     const totalMessages = await LineMessage.countDocuments()
 
-    res.json({
-      success: true,
-      data: {
-        totalUsers,
-        activeUsers,
-        inactiveUsers: totalUsers - activeUsers,
-        totalMessages
-      }
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
-  }
-})
+//     res.json({
+//       success: true,
+//       data: {
+//         totalUsers,
+//         activeUsers,
+//         inactiveUsers: totalUsers - activeUsers,
+//         totalMessages
+//       }
+//     })
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       error: error.message
+//     })
+//   }
+// })
 
 // Get all users
-app.get('/api/users', async (req, res) => {
-  try {
-    const { limit = 50, skip = 0, isFriend } = req.query
+// app.get('/api/users', async (req, res) => {
+//   try {
+//     const { limit = 50, skip = 0, isFriend } = req.query
 
-    const filter = {}
-    if (isFriend !== undefined) {
-      filter.isFriend = isFriend === 'true'
-    }
+//     const filter = {}
+//     if (isFriend !== undefined) {
+//       filter.isFriend = isFriend === 'true'
+//     }
 
-    const users = await LineUser.find(filter)
-      .sort({ lastMessageAt: -1, createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip(parseInt(skip))
+//     const users = await LineUser.find(filter)
+//       .sort({ lastMessageAt: -1, createdAt: -1 })
+//       .limit(parseInt(limit))
+//       .skip(parseInt(skip))
 
-    const total = await LineUser.countDocuments(filter)
+//     const total = await LineUser.countDocuments(filter)
 
-    res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          total,
-          limit: parseInt(limit),
-          skip: parseInt(skip),
-          hasMore: parseInt(skip) + users.length < total
-        }
-      }
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
-  }
-})
+//     res.json({
+//       success: true,
+//       data: {
+//         users,
+//         pagination: {
+//           total,
+//           limit: parseInt(limit),
+//           skip: parseInt(skip),
+//           hasMore: parseInt(skip) + users.length < total
+//         }
+//       }
+//     })
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       error: error.message
+//     })
+//   }
+// })
 
 // Get specific user's messages
-app.get('/api/users/:userId/messages', async (req, res) => {
-  try {
-    const { userId } = req.params
-    const { limit = 50 } = req.query
+// app.get('/api/users/:userId/messages', async (req, res) => {
+//   try {
+//     const { userId } = req.params
+//     const { limit = 50 } = req.query
 
-    const messages = await LineMessage.find({ userId })
-      .sort({ timestamp: -1 })
-      .limit(parseInt(limit))
+//     const messages = await LineMessage.find({ userId })
+//       .sort({ timestamp: -1 })
+//       .limit(parseInt(limit))
 
-    res.json({
-      success: true,
-      data: {
-        userId,
-        messages,
-        total: messages.length
-      }
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
-  }
-})
+//     res.json({
+//       success: true,
+//       data: {
+//         userId,
+//         messages,
+//         total: messages.length
+//       }
+//     })
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       error: error.message
+//     })
+//   }
+// })
 
 // Get all messages
 // Check for expired code requests and notify users
 
-// Line webhook endpoint with enhanced error handling
-app.post(
-  '/webhook',
-  (req, res, next) => {
+// Line webhook endpoint with manual signature verification
+app.post('/webhook', async (req, res) => {
+  try {
     console.log('📨 Webhook request received')
     console.log('Headers:', JSON.stringify(req.headers, null, 2))
-    console.log('Body type:', typeof req.body)
-    console.log('Content-Type:', req.headers['content-type'])
 
-    // Validate environment variables
-    if (!process.env.LINE_CHANNEL_SECRET) {
-      console.error('❌ LINE_CHANNEL_SECRET is not set')
-      return res
-        .status(500)
-        .json({ error: 'LINE_CHANNEL_SECRET not configured' })
+    // Get signature from header
+    const signature = req.headers['x-line-signature']
+    if (!signature) {
+      console.error('❌ Missing X-Line-Signature header')
+      return res.status(400).json({ error: 'Missing signature' })
     }
 
-    if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-      console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is not set')
-      return res
-        .status(500)
-        .json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' })
+    // Verify signature
+    const isValid = verifySignature(req.body, signature, process.env.LINE_CHANNEL_SECRET)
+    if (!isValid) {
+      console.error('❌ Invalid signature')
+      return res.status(400).json({ error: 'Invalid signature' })
     }
 
-    next()
-  },
-  line.middleware(lineConfig),
-  async (req, res) => {
-    try {
-      console.log('✅ Signature validation passed')
-      console.log('📨 Webhook body:', JSON.stringify(req.body, null, 2))
+    // Parse body
+    const body = JSON.parse(req.body.toString('utf8'))
+    console.log('✅ Signature validation passed')
+    console.log('📨 Webhook body:', JSON.stringify(body, null, 2))
 
-      const events = req.body.events || []
+    const events = body.events || []
 
-      if (events.length === 0) {
-        console.log('ℹ️ No events to process')
-        return res.status(200).json({ success: true, message: 'No events' })
-      }
-
-      // Process each event
-      await Promise.all(events.map(handleEvent))
-
-      res.status(200).json({ success: true })
-    } catch (error) {
-      console.error('❌ Webhook processing error:', error)
-      res.status(500).json({
-        success: false,
-        error: error.message
-      })
+    if (events.length === 0) {
+      console.log('ℹ️ No events to process')
+      return res.status(200).json({ success: true, message: 'No events' })
     }
+
+    // Process each event
+    await Promise.all(events.map(handleEvent))
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
   }
-)
+})
 
 // Handle Line events
 async function handleEvent(event) {
@@ -245,7 +263,7 @@ async function handleEvent(event) {
     // Get user profile
     let profile = null
     try {
-      profile = await lineClient.getProfile(event.source.userId)
+      profile = await getUserProfile(event.source.userId)
       console.log('👤 User profile:', profile)
     } catch (profileError) {
       console.warn('⚠️ Could not get profile:', profileError.message)
@@ -296,10 +314,7 @@ async function handleFollowEvent(event, profile) {
       }! 👋\n\nยินดีต้อนรับเข้าสู่ระบบ Q-Dragon\n\nหากต้องการรับการแจ้งเตือนสถานะบัญชี กรุณาส่งหมายเลขบัญชีของคุณ (Account Number) มายังแชทนี้ เช่น 12345\n\nส่งข้อความอะไรมาก็ได้ เราจะบันทึกข้อความของคุณลงในฐานข้อมูลครับ 📝`
     }
 
-    await lineClient.replyMessage({
-      replyToken: event.replyToken,
-      messages: [welcomeMessage]
-    })
+    await replyMessage(event.replyToken, [welcomeMessage])
 
     console.log('✅ Follow event processed successfully')
   } catch (error) {
@@ -348,15 +363,12 @@ async function handleMessageEvent(event, profile) {
             `Stored userId ${userId} in CustomerAccount for accountNumber ${num}`
           )
           // Send confirmation message to customer
-          await lineClient.replyMessage({
-            replyToken: event.replyToken,
-            messages: [
-              {
-                type: 'text',
-                text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้ว`
-              }
-            ]
-          })
+          await replyMessage(event.replyToken, [
+            {
+              type: 'text',
+              text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้ว`
+            }
+          ])
         }
       }
     }
@@ -525,24 +537,12 @@ async function handleMessageEvent(event, profile) {
           console.log(
             `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
           )
-          const url = 'https://api.line.me/v2/bot/message/push'
-          const body = {
-            to: account.userLineId,
-            messages: [
-              {
-                type: 'text',
-                text: notifyText
-              }
-            ]
-          }
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-            },
-            body: JSON.stringify(body)
-          })
+          const response = await pushMessage(account.userLineId, [
+            {
+              type: 'text',
+              text: notifyText
+            }
+          ])
           if (!response.ok) {
             const errorText = await response.text()
             throw new Error(`LINE API error: ${response.status} - ${errorText}`)
@@ -616,24 +616,12 @@ async function handleMessageEvent(event, profile) {
           console.log(
             `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
           )
-          const url = 'https://api.line.me/v2/bot/message/push'
-          const body = {
-            to: account.userLineId,
-            messages: [
-              {
-                type: 'text',
-                text: notifyText
-              }
-            ]
-          }
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-            },
-            body: JSON.stringify(body)
-          })
+          const response = await pushMessage(account.userLineId, [
+            {
+              type: 'text',
+              text: notifyText
+            }
+          ])
           if (!response.ok) {
             const errorText = await response.text()
             throw new Error(`LINE API error: ${response.status} - ${errorText}`)
