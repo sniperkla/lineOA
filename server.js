@@ -407,18 +407,13 @@ async function handleMessageEvent(event, profile) {
   console.log(`💬 Message from ${userId}: "${messageText}"`)
 
   try {
-    // Reply to user
-    const replyMessage = {
-      type: 'text',
-      text: responseText
-    }
     const botInfoMessage = {
       type: 'text',
       text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ'
     }
     await lineClient.replyMessage({
       replyToken: event.replyToken,
-      messages: [replyMessage, botInfoMessage]
+      messages: [botInfoMessage]
     })
     console.log('✅ Reply and bot info sent to user')
   } catch (error) {
