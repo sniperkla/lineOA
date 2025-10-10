@@ -529,9 +529,21 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    text: 'License ของคุณได้หมดอายุแล้ว',
                     margin: 'md',
                     wrap: true
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `🔑 License Key: ${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    margin: 'md'
                   },
                   {
                     type: 'text',
@@ -568,9 +580,21 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    text: 'License ของคุณถูกระงับชั่วคราว',
                     margin: 'md',
                     wrap: true
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `🔑 License Key: ${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    margin: 'md'
                   },
                   {
                     type: 'text',
@@ -676,9 +700,21 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    text: 'License ของคุณได้หมดอายุแล้ว',
                     margin: 'md',
                     wrap: true
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `🔑 License Key: ${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    margin: 'md'
                   },
                   {
                     type: 'text',
@@ -715,9 +751,21 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    text: 'License ของคุณถูกระงับชั่วคราว',
                     margin: 'md',
                     wrap: true
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `🔑 License Key: ${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    margin: 'md'
                   },
                   {
                     type: 'text',
@@ -774,9 +822,21 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} จะหมดอายุในอีก ${daysLeft} วัน`,
+                    text: `License ของคุณจะหมดอายุในอีก ${daysLeft} วัน`,
                     margin: 'md',
                     wrap: true
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `🔑 License Key: ${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    margin: 'md'
                   },
                   {
                     type: 'text',
