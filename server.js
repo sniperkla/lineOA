@@ -1,10 +1,11 @@
-const express = require('express')
-const dotenv = require('dotenv')
-const cors = require('cors')
-const { connectDB } = require('./config/database.js')
-const LineUser = require('./models/LineUser.js')
-const CustomerAccount = require('./models/CustomerAccount.js')
-const line = require('@line/bot-sdk')
+import express from 'express'
+import dotenv from 'dotenv'
+import cors from 'cors'
+import { connectDB } from './config/database.js'
+import LineUser from './models/LineUser.js'
+import CustomerAccount from './models/CustomerAccount.js'
+import fetch from 'node-fetch'
+import * as line from '@line/bot-sdk'
 
 // Load environment variables
 dotenv.config()
