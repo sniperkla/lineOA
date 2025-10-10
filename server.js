@@ -596,13 +596,15 @@ setInterval(async () => {
           let daysLeft = 3
           if (account.expireDate) {
             const now = new Date()
-            const expireDate = new Date(account.expireDate)
+            let expireDate = new Date(account.expireDate)
             console.log('law expireDate:', account.expireDate)
-            console.log('active expireDate:', expireDate)
-
+            // Adjust for Thai Buddhist calendar (subtract 543 years if year > 2500)
+            if (expireDate.getFullYear() > 2500) {
+              expireDate.setFullYear(expireDate.getFullYear() - 543)
+            }
+            console.log('adjusted expireDate:', expireDate)
             daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
-            console.log('active expireDate:', daysLeft)
-
+            console.log('daysLeft:', daysLeft)
             if (daysLeft > 3) daysLeft = 3
             if (daysLeft < 1) daysLeft = 1
           }
