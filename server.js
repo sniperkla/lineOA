@@ -543,8 +543,7 @@ setInterval(async () => {
                     type: 'text',
                     text: 'ขอบคุณที่ใช้บริการครับ/คะ',
                     margin: 'lg',
-                    size: 'sm',
-                    color: '#888888'
+                    size: 'sm'
                   }
                 ]
               }
@@ -583,8 +582,7 @@ setInterval(async () => {
                     type: 'text',
                     text: 'ขอบคุณที่ใช้บริการครับ/คะ',
                     margin: 'lg',
-                    size: 'sm',
-                    color: '#888888'
+                    size: 'sm'
                   }
                 ]
               }
@@ -692,8 +690,7 @@ setInterval(async () => {
                     type: 'text',
                     text: 'ขอบคุณที่ใช้บริการครับ/คะ',
                     margin: 'lg',
-                    size: 'sm',
-                    color: '#888888'
+                    size: 'sm'
                   }
                 ]
               }
@@ -732,8 +729,7 @@ setInterval(async () => {
                     type: 'text',
                     text: 'ขอบคุณที่ใช้บริการครับ/คะ',
                     margin: 'lg',
-                    size: 'sm',
-                    color: '#888888'
+                    size: 'sm'
                   }
                 ]
               }
@@ -792,8 +788,7 @@ setInterval(async () => {
                     type: 'text',
                     text: 'ขอบคุณที่ใช้บริการครับ/คะ',
                     margin: 'lg',
-                    size: 'sm',
-                    color: '#888888'
+                    size: 'sm'
                   }
                 ]
               }
