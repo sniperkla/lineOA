@@ -333,7 +333,7 @@ async function handleFollowEvent(event, profile) {
       type: 'text',
       text: `สวัสดีครับ ${
         profile?.displayName || 'คุณ'
-      }! 👋\n\nยินดีต้อนรับเข้าสู่ระบบ Q-Dragon\n\nกรุณาส่งหมายเลขบัญชีของคุณเพื่อเปิดใช้งานฟังก์ชันแจ้งเตือนอัตโนมัติ 📝`
+      }! 👋\n\nยินดีต้อนรับเข้าสู่ระบบ Q-Dragon\n\nกรุณาส่งหมายเลขบัญชีของคุณเพื่อเปิดใช้งานฟังก์ชันแจ้งเตือนอัตโนมัติ หากคีย์ใกล้จะถึงวันหมดอายุ 📝`
     }
 
     await lineClient.replyMessage({
@@ -371,8 +371,7 @@ async function handleUnfollowEvent(event) {
 async function handleMessageEvent(event, profile) {
   const userId = event.source.userId
   const messageText = event.message.text
-  const messageId = event.message.id
-  const timestamp = new Date(event.timestamp)
+
   console.log('🔢 Extracted numbers from message:', userId)
 
   // Extract numbers from user input and log if length > 4
@@ -408,50 +407,6 @@ async function handleMessageEvent(event, profile) {
   console.log(`💬 Message from ${userId}: "${messageText}"`)
 
   try {
-    // Find or create user
-    const user = await LineUser.findOrCreate(userId, {
-      displayName: profile?.displayName,
-      pictureUrl: profile?.pictureUrl,
-      statusMessage: profile?.statusMessage,
-      language: profile?.language
-    })
-
-    // Increment message count
-    await user.incrementMessageCount()
-
-    // Check if this is the first message
-    const messageCount = await LineMessage.countDocuments({ userId })
-    const isFirstMessage = messageCount === 0
-
-    // Save message to database
-    const responseText = `ได้รับข้อความแล้วครับ: "${messageText}"\n\nข้อความของคุณถูกบันทึกในระบบเรียบร้อยแล้ว ✅`
-
-    const lineMessage = new LineMessage({
-      userId,
-      displayName: profile?.displayName,
-      pictureUrl: profile?.pictureUrl,
-      statusMessage: profile?.statusMessage,
-      messageText,
-      messageId,
-      messageType: 'text',
-      timestamp,
-      metadata: {
-        replyToken: event.replyToken,
-        source: {
-          type: event.source.type,
-          userId: event.source.userId,
-          groupId: event.source.groupId,
-          roomId: event.source.roomId
-        }
-      },
-      isFirstMessage,
-      responseText,
-      respondedAt: new Date()
-    })
-
-    await lineMessage.save()
-    console.log('✅ Message saved to database')
-
     // Reply to user
     const replyMessage = {
       type: 'text',
@@ -459,7 +414,7 @@ async function handleMessageEvent(event, profile) {
     }
     const botInfoMessage = {
       type: 'text',
-      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ ไม่ใช่เจ้าหน้าที่จริง หากต้องการติดต่อเจ้าหน้าที่ กรุณาแจ้งข้อความไว้ได้เลยครับ'
+      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ'
     }
     await lineClient.replyMessage({
       replyToken: event.replyToken,
@@ -698,4 +653,4 @@ setInterval(async () => {
     console.error('❌ Error in customer account notification interval:', error)
   }
   console.log('🔄 Interval job completed.')
-}, 10000) // 5 minutes
+}, 60000) // 5 minutes
