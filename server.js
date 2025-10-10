@@ -597,7 +597,12 @@ setInterval(async () => {
           if (account.expireDate) {
             const now = new Date()
             const expireDate = new Date(account.expireDate)
+            console.log('law expireDate:', account.expireDate)
+            console.log('active expireDate:', expireDate)
+
             daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
+            console.log('active expireDate:', daysLeft)
+
             if (daysLeft > 3) daysLeft = 3
             if (daysLeft < 1) daysLeft = 1
           }
