@@ -467,9 +467,9 @@ process.on('SIGINT', () => {
 // Interval job: notify users for expired customer accounts every 5 minutes
 setInterval(async () => {
   try {
-    console.log(
-      '🔄 Starting interval job to notify expired customer accounts...'
-    )
+    // console.log(
+    //   '🔄 Starting interval job to notify expired customer accounts...'
+    // )
     const checkPreValid = await CustomerAccount.find({
       status: 'valid',
       userLineId: { $exists: true, $ne: '' },
@@ -482,9 +482,9 @@ setInterval(async () => {
             { _id: account._id, status: 'valid', notified: true },
             { $set: { notified: false } }
           )
-          console.log(
-            `✅ Updated account ${account.accountNumber} status back to unnotified.`
-          )
+          // console.log(
+          //   `✅ Updated account ${account.accountNumber} status back to unnotified.`
+          // )
         } catch (err) {
           console.error(
             `❌ Failed to update account ${account.accountNumber}:`,
@@ -502,9 +502,9 @@ setInterval(async () => {
       ],
       notified: false
     })
-    console.log(
-      `📋 Found ${expiredOrSuspendedAccounts.length} expired or suspended accounts to notify.`
-    )
+    // console.log(
+    //   `📋 Found ${expiredOrSuspendedAccounts.length} expired or suspended accounts to notify.`
+    // )
 
     for (const account of expiredOrSuspendedAccounts) {
       try {
@@ -578,11 +578,11 @@ setInterval(async () => {
         }
       ]
     })
-    console.log(
-      `📋 Found ${
-        accountsToNotify.length
-      } accounts to notify for statuses: ${notifyStatuses.join(', ')}.`
-    )
+    // console.log(
+    //   `📋 Found ${
+    //     accountsToNotify.length
+    //   } accounts to notify for statuses: ${notifyStatuses.join(', ')}.`
+    // )
 
     for (const account of accountsToNotify) {
       try {
@@ -653,4 +653,4 @@ setInterval(async () => {
     console.error('❌ Error in customer account notification interval:', error)
   }
   console.log('🔄 Interval job completed.')
-}, 60000) // 5 minutes
+}, 180000) // 3 minutes
