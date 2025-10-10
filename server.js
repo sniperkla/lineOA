@@ -1,8 +1,9 @@
 import express from 'express'
+import * as line from '@line/bot-sdk'
 import dotenv from 'dotenv'
 import cors from 'cors'
-import crypto from 'crypto'
 import { connectDB } from './config/database.js'
+import LineMessage from './models/LineMessage.js'
 import LineUser from './models/LineUser.js'
 import CustomerAccount from './models/CustomerAccount.js'
 import fetch from 'node-fetch'
@@ -23,61 +24,43 @@ if (!process.env.LINE_CHANNEL_SECRET) {
   process.exit(1)
 }
 
-// Function to verify LINE signature
-function verifySignature(body, signature, channelSecret) {
-  const hash = crypto.createHmac('sha256', channelSecret).update(body, 'utf8').digest('base64')
-  return hash === signature
+// Line Bot SDK configuration
+const lineConfig = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET
 }
 
-// Function to get user profile
-async function getUserProfile(userId) {
-  const fetch = (await import('node-fetch')).default
-  const response = await fetch(`https://api.line.me/v2/bot/profile/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-    }
-  })
-  if (response.ok) {
-    return await response.json()
-  }
-  return null
-}
+// Create Line client
+const lineClient = new line.messagingApi.MessagingApiClient({
+  channelAccessToken: lineConfig.channelAccessToken
+})
 
-// Function to reply message
-async function replyMessage(replyToken, messages) {
-  const fetch = (await import('node-fetch')).default
-  const response = await fetch('https://api.line.me/v2/bot/message/reply', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-    },
-    body: JSON.stringify({ replyToken, messages })
-  })
-  return response
-}
-
-// Function to push message
-async function pushMessage(to, messages) {
-  const fetch = (await import('node-fetch')).default
-  const response = await fetch('https://api.line.me/v2/bot/message/push', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-    },
-    body: JSON.stringify({ to, messages })
-  })
-  return response
-}
+console.log('✅ Line Bot SDK configured successfully')
+console.log(
+  `📋 Channel Secret: ${process.env.LINE_CHANNEL_SECRET.substring(0, 8)}...`
+)
+console.log(
+  `📋 Access Token: ${process.env.LINE_CHANNEL_ACCESS_TOKEN.substring(
+    0,
+    20
+  )}...`
+)
 
 // Create Express app
 const app = express()
-const PORT = process.env.PORT
+const PORT = process.env.PORT || 4000
 
 // Middleware
 app.use(cors())
+
 // Apply express.json() to all routes except webhook
+app.use((req, res, next) => {
+  if (req.path === '/webhook') {
+    next()
+  } else {
+    express.json()(req, res, next)
+  }
+})
 
 app.use(express.urlencoded({ extended: true }))
 
@@ -100,7 +83,7 @@ app.get('/config-check', (req, res) => {
     hasChannelSecret: !!process.env.LINE_CHANNEL_SECRET,
     hasAccessToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
     hasMongoUri: !!process.env.MONGODB_URI,
-    port: PORT,
+    port: process.env.PORT || 4000,
     nodeEnv: process.env.NODE_ENV || 'development',
     channelSecretLength: process.env.LINE_CHANNEL_SECRET?.length || 0,
     accessTokenLength: process.env.LINE_CHANNEL_ACCESS_TOKEN?.length || 0
@@ -121,139 +104,178 @@ app.get('/config-check', (req, res) => {
 })
 
 // Get user statistics
-// app.get('/api/users/stats', async (req, res) => {
-//   try {
-//     const totalUsers = await LineUser.countDocuments()
-//     const activeUsers = await LineUser.countDocuments({ isFriend: true })
-//     const totalMessages = await LineMessage.countDocuments()
-
-//     res.json({
-//       success: true,
-//       data: {
-//         totalUsers,
-//         activeUsers,
-//         inactiveUsers: totalUsers - activeUsers,
-//         totalMessages
-//       }
-//     })
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: error.message
-//     })
-//   }
-// })
-
-// Get all users
-// app.get('/api/users', async (req, res) => {
-//   try {
-//     const { limit = 50, skip = 0, isFriend } = req.query
-
-//     const filter = {}
-//     if (isFriend !== undefined) {
-//       filter.isFriend = isFriend === 'true'
-//     }
-
-//     const users = await LineUser.find(filter)
-//       .sort({ lastMessageAt: -1, createdAt: -1 })
-//       .limit(parseInt(limit))
-//       .skip(parseInt(skip))
-
-//     const total = await LineUser.countDocuments(filter)
-
-//     res.json({
-//       success: true,
-//       data: {
-//         users,
-//         pagination: {
-//           total,
-//           limit: parseInt(limit),
-//           skip: parseInt(skip),
-//           hasMore: parseInt(skip) + users.length < total
-//         }
-//       }
-//     })
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: error.message
-//     })
-//   }
-// })
-
-// Get specific user's messages
-// app.get('/api/users/:userId/messages', async (req, res) => {
-//   try {
-//     const { userId } = req.params
-//     const { limit = 50 } = req.query
-
-//     const messages = await LineMessage.find({ userId })
-//       .sort({ timestamp: -1 })
-//       .limit(parseInt(limit))
-
-//     res.json({
-//       success: true,
-//       data: {
-//         userId,
-//         messages,
-//         total: messages.length
-//       }
-//     })
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: error.message
-//     })
-//   }
-// })
-
-// Get all messages
-// Check for expired code requests and notify users
-
-// Line webhook endpoint with manual signature verification
-app.post('/webhook', async (req, res) => {
+app.get('/api/users/stats', async (req, res) => {
   try {
-    console.log('📨 Webhook request received')
-    console.log('Headers:', JSON.stringify(req.headers, null, 2))
+    const totalUsers = await LineUser.countDocuments()
+    const activeUsers = await LineUser.countDocuments({ isFriend: true })
+    const totalMessages = await LineMessage.countDocuments()
 
-    // Get signature from header
-    const signature = req.headers['x-line-signature']
-    if (!signature) {
-      console.error('❌ Missing X-Line-Signature header')
-      return res.status(400).json({ error: 'Missing signature' })
-    }
-
-    // Verify signature
-    const isValid = verifySignature(req.body, signature, process.env.LINE_CHANNEL_SECRET)
-    if (!isValid) {
-      console.error('❌ Invalid signature')
-      return res.status(400).json({ error: 'Invalid signature' })
-    }
-
-    // Parse body
-    const body = JSON.parse(req.body.toString('utf8'))
-    console.log('✅ Signature validation passed')
-    console.log('📨 Webhook body:', JSON.stringify(body, null, 2))
-
-    const events = body.events || []
-
-    if (events.length === 0) {
-      console.log('ℹ️ No events to process')
-      return res.status(200).json({ success: true, message: 'No events' })
-    }
-
-    // Process each event
-    await Promise.all(events.map(handleEvent))
-
-    res.status(200).json({ success: true })
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        totalMessages
+      }
+    })
   } catch (error) {
-    console.error('❌ Webhook processing error:', error)
     res.status(500).json({
       success: false,
       error: error.message
     })
   }
 })
+
+// Get all users
+app.get('/api/users', async (req, res) => {
+  try {
+    const { limit = 50, skip = 0, isFriend } = req.query
+
+    const filter = {}
+    if (isFriend !== undefined) {
+      filter.isFriend = isFriend === 'true'
+    }
+
+    const users = await LineUser.find(filter)
+      .sort({ lastMessageAt: -1, createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+
+    const total = await LineUser.countDocuments(filter)
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          total,
+          limit: parseInt(limit),
+          skip: parseInt(skip),
+          hasMore: parseInt(skip) + users.length < total
+        }
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get specific user's messages
+app.get('/api/users/:userId/messages', async (req, res) => {
+  try {
+    const { userId } = req.params
+    const { limit = 50 } = req.query
+
+    const messages = await LineMessage.find({ userId })
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+
+    res.json({
+      success: true,
+      data: {
+        userId,
+        messages,
+        total: messages.length
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get all messages
+app.get('/api/messages', async (req, res) => {
+  try {
+    const { limit = 100, skip = 0 } = req.query
+
+    const messages = await LineMessage.find()
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+
+    const total = await LineMessage.countDocuments()
+
+    res.json({
+      success: true,
+      data: {
+        messages,
+        pagination: {
+          total,
+          limit: parseInt(limit),
+          skip: parseInt(skip),
+          hasMore: parseInt(skip) + messages.length < total
+        }
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Check for expired code requests and notify users
+
+// Line webhook endpoint with enhanced error handling
+app.post(
+  '/webhook',
+  (req, res, next) => {
+    console.log('📨 Webhook request received')
+    console.log('Headers:', JSON.stringify(req.headers, null, 2))
+    console.log('Body type:', typeof req.body)
+    console.log('Content-Type:', req.headers['content-type'])
+
+    // Validate environment variables
+    if (!process.env.LINE_CHANNEL_SECRET) {
+      console.error('❌ LINE_CHANNEL_SECRET is not set')
+      return res
+        .status(500)
+        .json({ error: 'LINE_CHANNEL_SECRET not configured' })
+    }
+
+    if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+      console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is not set')
+      return res
+        .status(500)
+        .json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' })
+    }
+
+    next()
+  },
+  line.middleware(lineConfig),
+  async (req, res) => {
+    try {
+      console.log('✅ Signature validation passed')
+      console.log('📨 Webhook body:', JSON.stringify(req.body, null, 2))
+
+      const events = req.body.events || []
+
+      if (events.length === 0) {
+        console.log('ℹ️ No events to process')
+        return res.status(200).json({ success: true, message: 'No events' })
+      }
+
+      // Process each event
+      await Promise.all(events.map(handleEvent))
+
+      res.status(200).json({ success: true })
+    } catch (error) {
+      console.error('❌ Webhook processing error:', error)
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+)
 
 // Handle Line events
 async function handleEvent(event) {
@@ -263,7 +285,7 @@ async function handleEvent(event) {
     // Get user profile
     let profile = null
     try {
-      profile = await getUserProfile(event.source.userId)
+      profile = await lineClient.getProfile(event.source.userId)
       console.log('👤 User profile:', profile)
     } catch (profileError) {
       console.warn('⚠️ Could not get profile:', profileError.message)
@@ -311,10 +333,13 @@ async function handleFollowEvent(event, profile) {
       type: 'text',
       text: `สวัสดีครับ ${
         profile?.displayName || 'คุณ'
-      }! 👋\n\nยินดีต้อนรับเข้าสู่ระบบ Q-Dragon\n\nหากต้องการรับการแจ้งเตือนสถานะบัญชี กรุณาส่งหมายเลขบัญชีของคุณ (Account Number) มายังแชทนี้ เช่น 12345\n\nส่งข้อความอะไรมาก็ได้ เราจะบันทึกข้อความของคุณลงในฐานข้อมูลครับ 📝`
+      }! 👋\n\nยินดีต้อนรับเข้าสู่ระบบ Q-Dragon\n\nกรุณาส่งหมายเลขบัญชีของคุณเพื่อเปิดใช้งานฟังก์ชันแจ้งเตือนอัตโนมัติ 📝`
     }
 
-    await replyMessage(event.replyToken, [welcomeMessage])
+    await lineClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [welcomeMessage]
+    })
 
     console.log('✅ Follow event processed successfully')
   } catch (error) {
@@ -346,6 +371,9 @@ async function handleUnfollowEvent(event) {
 async function handleMessageEvent(event, profile) {
   const userId = event.source.userId
   const messageText = event.message.text
+  const messageId = event.message.id
+  const timestamp = new Date(event.timestamp)
+  console.log('🔢 Extracted numbers from message:', userId)
 
   // Extract numbers from user input and log if length > 4
   const matches = messageText.match(/\d+/g)
@@ -363,63 +391,66 @@ async function handleMessageEvent(event, profile) {
             `Stored userId ${userId} in CustomerAccount for accountNumber ${num}`
           )
           // Send confirmation message to customer
-          await replyMessage(event.replyToken, [
-            {
-              type: 'text',
-              text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้ว`
-            }
-          ])
+          await lineClient.replyMessage({
+            replyToken: event.replyToken,
+            messages: [
+              {
+                type: 'text',
+                text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้วครับ`
+              }
+            ]
+          })
         }
       }
     }
   }
 
-  // console.log(`💬 Message from ${userId}: "${messageText}"`)
+  console.log(`💬 Message from ${userId}: "${messageText}"`)
 
   try {
     // Find or create user
-    // const user = await LineUser.findOrCreate(userId, {
-    //   displayName: profile?.displayName,
-    //   pictureUrl: profile?.pictureUrl,
-    //   statusMessage: profile?.statusMessage,
-    //   language: profile?.language
-    // })
+    const user = await LineUser.findOrCreate(userId, {
+      displayName: profile?.displayName,
+      pictureUrl: profile?.pictureUrl,
+      statusMessage: profile?.statusMessage,
+      language: profile?.language
+    })
 
     // Increment message count
-    // await user.incrementMessageCount()
+    await user.incrementMessageCount()
 
     // Check if this is the first message
-    // const messageCount = await LineMessage.countDocuments({ userId })
-    // const isFirstMessage = messageCount === 0
+    const messageCount = await LineMessage.countDocuments({ userId })
+    const isFirstMessage = messageCount === 0
 
     // Save message to database
-    // const responseText = `ได้รับข้อความแล้วครับ: "${messageText}"\n\nข้อความของคุณถูกบันทึกในระบบเรียบร้อยแล้ว ✅`
+    const responseText = `ได้รับข้อความแล้วครับ: "${messageText}"\n\nข้อความของคุณถูกบันทึกในระบบเรียบร้อยแล้ว ✅`
 
-    // const lineMessage = new LineMessage({
-    //   userId,
-    //   displayName: profile?.displayName,
-    //   pictureUrl: profile?.pictureUrl,
-    //   statusMessage: profile?.statusMessage,
-    //   messageText,
-    //   messageId,
-    //   messageType: 'text',
-    //   timestamp,
-    //   metadata: {
-    //     replyToken: event.replyToken,
-    //     source: {
-    //       type: event.source.type,
-    //       userId: event.source.userId,
-    //       groupId: event.source.groupId,
-    //       roomId: event.source.roomId
-    //     }
-    //   },
-    //   isFirstMessage,
-    //   responseText,
-    //   respondedAt: new Date()
-    // })
+    const lineMessage = new LineMessage({
+      userId,
+      displayName: profile?.displayName,
+      pictureUrl: profile?.pictureUrl,
+      statusMessage: profile?.statusMessage,
+      messageText,
+      messageId,
+      messageType: 'text',
+      timestamp,
+      metadata: {
+        replyToken: event.replyToken,
+        source: {
+          type: event.source.type,
+          userId: event.source.userId,
+          groupId: event.source.groupId,
+          roomId: event.source.roomId
+        }
+      },
+      isFirstMessage,
+      responseText,
+      respondedAt: new Date()
+    })
 
-    // await lineMessage.save()
-    // console.log('✅ Message saved to database')
+    await lineMessage.save()
+    console.log('✅ Message saved to database')
 
     // Reply to user
     const replyMessage = {
@@ -428,7 +459,7 @@ async function handleMessageEvent(event, profile) {
     }
     const botInfoMessage = {
       type: 'text',
-      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ ไว้หรับรับข้อมูลข่าวสารจากทาง​ QDRAGON เท่านั้น'
+      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ ไม่ใช่เจ้าหน้าที่จริง หากต้องการติดต่อเจ้าหน้าที่ กรุณาแจ้งข้อความไว้ได้เลยครับ'
     }
     await lineClient.replyMessage({
       replyToken: event.replyToken,
@@ -437,217 +468,234 @@ async function handleMessageEvent(event, profile) {
     console.log('✅ Reply and bot info sent to user')
   } catch (error) {
     console.error('❌ Error handling message event:', error)
-  }
-  // Try to send error message to user
-  //     try {
-  //       await lineClient.replyMessage({
-  //         replyToken: event.replyToken,
-  //         messages: [
-  //           {
-  //             type: 'text',
-  //             text: 'ขออภัยครับ เกิดข้อผิดพลาดในการบันทึกข้อความ กรุณาลองใหม่อีกครั้ง'
-  //           }
-  //         ]
-  //       })
-  //     } catch (replyError) {
-  //       console.error('❌ Could not send error message:', replyError)
-  //     }
 
-  //     throw error
-  //   }
-  // }
-
-  // Start server
-  app.listen(PORT, () => {
-    console.log('🚀 Line OA Backend Server Started')
-    console.log(`📡 Server running on port ${PORT}`)
-    console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
-    console.log(`💚 Health check: http://localhost:${PORT}/health`)
-    console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
-    console.log('\n⚡ Ready to receive Line webhooks!')
-  })
-
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('⚠️ SIGTERM received, shutting down gracefully...')
-    process.exit(0)
-  })
-
-  process.on('SIGINT', () => {
-    console.log('⚠️ SIGINT received, shutting down gracefully...')
-    process.exit(0)
-  })
-
-  // Interval job: notify users for expired customer accounts every 5 minutes
-  setInterval(async () => {
+    // Try to send error message to user
     try {
-      console.log(
-        '🔄 Starting interval job to notify expired customer accounts...'
-      )
-      const checkPreValid = await CustomerAccount.find({
-        status: 'valid',
-        userLineId: { $exists: true, $ne: '' },
-        notified: true
-      })
-      if (checkPreValid) {
-        for (const account of checkPreValid) {
-          try {
-            await CustomerAccount.updateOne(
-              { _id: account._id, status: 'valid', notified: true },
-              { $set: { notified: false } }
-            )
-            console.log(
-              `✅ Updated account ${account.accountNumber} status back to unnotified.`
-            )
-          } catch (err) {
-            console.error(
-              `❌ Failed to update account ${account.accountNumber}:`,
-              err
-            )
-          }
-        }
-      }
-      const expiredOrSuspendedAccounts = await CustomerAccount.find({
-        status: { $in: ['expired', 'suspended'] },
-        userLineId: { $exists: true, $ne: '' },
-        $or: [
-          { lastNotifiedStatus: { $ne: 'expired' }, status: 'expired' },
-          { lastNotifiedStatus: { $ne: 'suspended' }, status: 'suspended' }
-        ],
-        notified: false
-      })
-      console.log(
-        `📋 Found ${expiredOrSuspendedAccounts.length} expired or suspended accounts to notify.`
-      )
-
-      for (const account of expiredOrSuspendedAccounts) {
-        try {
-          if (!account.userLineId || typeof account.userLineId !== 'string') {
-            console.warn(
-              `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
-            )
-            continue
-          }
-          let notifyText = ''
-          if (account.status === 'expired') {
-            notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
-          } else if (account.status === 'suspended') {
-            notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ กรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม`
-          }
-          console.log(
-            `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
-          )
-          const response = await pushMessage(account.userLineId, [
-            {
-              type: 'text',
-              text: notifyText
-            }
-          ])
-          if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`LINE API error: ${response.status} - ${errorText}`)
-          }
-          account.notified = true
-          account.lastNotifiedStatus = account.status
-          await account.save()
-          console.log(
-            `✅ Notified user ${account.userLineId} for ${account.status} license.`
-          )
-        } catch (err) {
-          console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
-          console.error(
-            `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
-          )
-        }
-      }
-
-      const notifyStatuses = ['expired', 'suspended', 'nearly_expired']
-      const accountsToNotify = await CustomerAccount.find({
-        status: { $in: notifyStatuses },
-        userLineId: { $exists: true, $ne: '' },
-        $or: [
+      await lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
           {
-            status: { $in: ['expired', 'suspended'] },
-            notified: { $ne: true }
-          },
-          {
-            status: 'nearly_expired',
-            $or: [
-              { lastNearlyExpiredNotifiedAt: { $exists: false } },
-              {
-                lastNearlyExpiredNotifiedAt: {
-                  $lt: new Date(new Date().setHours(0, 0, 0, 0))
-                }
-              }
-            ]
+            type: 'text',
+            text: 'ขออภัยครับ เกิดข้อผิดพลาดในการบันทึกข้อความ กรุณาลองใหม่อีกครั้ง'
           }
         ]
       })
-      console.log(
-        `📋 Found ${
-          accountsToNotify.length
-        } accounts to notify for statuses: ${notifyStatuses.join(', ')}.`
-      )
+    } catch (replyError) {
+      console.error('❌ Could not send error message:', replyError)
+    }
 
-      for (const account of accountsToNotify) {
+    throw error
+  }
+}
+
+// Start server
+app.listen(PORT, () => {
+  console.log('🚀 Line OA Backend Server Started')
+  console.log(`📡 Server running on port ${PORT}`)
+  console.log(`🔗 Webhook URL: http://localhost:${PORT}/webhook`)
+  console.log(`💚 Health check: http://localhost:${PORT}/health`)
+  console.log(`📊 API Stats: http://localhost:${PORT}/api/users/stats`)
+  console.log('\n⚡ Ready to receive Line webhooks!')
+})
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM received, shutting down gracefully...')
+  process.exit(0)
+})
+
+process.on('SIGINT', () => {
+  console.log('⚠️ SIGINT received, shutting down gracefully...')
+  process.exit(0)
+})
+
+// Interval job: notify users for expired customer accounts every 5 minutes
+setInterval(async () => {
+  try {
+    console.log(
+      '🔄 Starting interval job to notify expired customer accounts...'
+    )
+    const checkPreValid = await CustomerAccount.find({
+      status: 'valid',
+      userLineId: { $exists: true, $ne: '' },
+      notified: true
+    })
+    if (checkPreValid) {
+      for (const account of checkPreValid) {
         try {
-          if (!account.userLineId || typeof account.userLineId !== 'string') {
-            console.warn(
-              `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
-            )
-            continue
-          }
-          let notifyText = ''
-          if (account.status === 'expired') {
-            notifyText = `⏰ แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว ❌\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
-          } else if (account.status === 'suspended') {
-            notifyText = `🚫 แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ ⚠️\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม 📞`
-          } else if (account.status === 'nearly_expired') {
-            let daysLeft = 3
-            if (account.expireDate) {
-              const now = new Date()
-              const expireDate = new Date(account.expireDate)
-              daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
-              if (daysLeft > 3) daysLeft = 3
-              if (daysLeft < 1) daysLeft = 1
-            }
-            notifyText = `⚠️ แจ้งเตือน: License ของคุณ (${account.license}) กำลังจะหมดอายุในอีกไม่เกิน ${daysLeft} วัน ⏳\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
-          }
-          console.log(
-            `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
+          await CustomerAccount.updateOne(
+            { _id: account._id, status: 'valid', notified: true },
+            { $set: { notified: false } }
           )
-          const response = await pushMessage(account.userLineId, [
+          console.log(
+            `✅ Updated account ${account.accountNumber} status back to unnotified.`
+          )
+        } catch (err) {
+          console.error(
+            `❌ Failed to update account ${account.accountNumber}:`,
+            err
+          )
+        }
+      }
+    }
+    const expiredOrSuspendedAccounts = await CustomerAccount.find({
+      status: { $in: ['expired', 'suspended'] },
+      userLineId: { $exists: true, $ne: '' },
+      $or: [
+        { lastNotifiedStatus: { $ne: 'expired' }, status: 'expired' },
+        { lastNotifiedStatus: { $ne: 'suspended' }, status: 'suspended' }
+      ],
+      notified: false
+    })
+    console.log(
+      `📋 Found ${expiredOrSuspendedAccounts.length} expired or suspended accounts to notify.`
+    )
+
+    for (const account of expiredOrSuspendedAccounts) {
+      try {
+        if (!account.userLineId || typeof account.userLineId !== 'string') {
+          console.warn(
+            `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
+          )
+          continue
+        }
+        let notifyText = ''
+        if (account.status === 'expired') {
+          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน`
+        } else if (account.status === 'suspended') {
+          notifyText = `แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ กรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม`
+        }
+        console.log(
+          `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
+        )
+        const url = 'https://api.line.me/v2/bot/message/push'
+        const body = {
+          to: account.userLineId,
+          messages: [
             {
               type: 'text',
               text: notifyText
             }
-          ])
-          if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`LINE API error: ${response.status} - ${errorText}`)
-          }
-          if (account.status === 'nearly_expired') {
-            account.lastNearlyExpiredNotifiedAt = new Date()
-          } else {
-            account.notified = true
-          }
-          await account.save()
-          console.log(
-            `✅ Notified user ${account.userLineId} for ${account.status} license.`
-          )
-        } catch (err) {
-          console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
-          console.error(
-            `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
-          )
+          ]
         }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+          },
+          body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`LINE API error: ${response.status} - ${errorText}`)
+        }
+        account.notified = true
+        account.lastNotifiedStatus = account.status
+        await account.save()
+        console.log(
+          `✅ Notified user ${account.userLineId} for ${account.status} license.`
+        )
+      } catch (err) {
+        console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
+        console.error(
+          `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
+        )
       }
-    } catch (error) {
-      console.error(
-        '❌ Error in customer account notification interval:',
-        error
-      )
     }
-    console.log('🔄 Interval job completed.')
-  }, 15 * 60 * 1000) // 15 minutes
-}
+
+    const notifyStatuses = ['expired', 'suspended', 'nearly_expired']
+    const accountsToNotify = await CustomerAccount.find({
+      status: { $in: notifyStatuses },
+      userLineId: { $exists: true, $ne: '' },
+      $or: [
+        { status: { $in: ['expired', 'suspended'] }, notified: { $ne: true } },
+        {
+          status: 'nearly_expired',
+          $or: [
+            { lastNearlyExpiredNotifiedAt: { $exists: false } },
+            {
+              lastNearlyExpiredNotifiedAt: {
+                $lt: new Date(new Date().setHours(0, 0, 0, 0))
+              }
+            }
+          ]
+        }
+      ]
+    })
+    console.log(
+      `📋 Found ${
+        accountsToNotify.length
+      } accounts to notify for statuses: ${notifyStatuses.join(', ')}.`
+    )
+
+    for (const account of accountsToNotify) {
+      try {
+        if (!account.userLineId || typeof account.userLineId !== 'string') {
+          console.warn(
+            `⚠️ Skipping account ${account.accountNumber}: userLineId is missing or invalid.`
+          )
+          continue
+        }
+        let notifyText = ''
+        if (account.status === 'expired') {
+          notifyText = `⏰ แจ้งเตือน: License ของคุณ (${account.license}) หมดอายุแล้ว ❌\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+        } else if (account.status === 'suspended') {
+          notifyText = `🚫 แจ้งเตือน: License ของคุณ (${account.license}) ถูกระงับ ⚠️\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามข้อมูลเพิ่มเติม 📞`
+        } else if (account.status === 'nearly_expired') {
+          let daysLeft = 3
+          if (account.expireDate) {
+            const now = new Date()
+            const expireDate = new Date(account.expireDate)
+            daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
+            if (daysLeft > 3) daysLeft = 3
+            if (daysLeft < 1) daysLeft = 1
+          }
+          notifyText = `⚠️ แจ้งเตือน: License ของคุณ (${account.license}) กำลังจะหมดอายุในอีกไม่เกิน ${daysLeft} วัน ⏳\nกรุณาติดต่อเจ้าหน้าที่เพื่อขยายเวลาใช้งาน 💬`
+        }
+        console.log(
+          `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
+        )
+        const url = 'https://api.line.me/v2/bot/message/push'
+        const body = {
+          to: account.userLineId,
+          messages: [
+            {
+              type: 'text',
+              text: notifyText
+            }
+          ]
+        }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+          },
+          body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`LINE API error: ${response.status} - ${errorText}`)
+        }
+        if (account.status === 'nearly_expired') {
+          account.lastNearlyExpiredNotifiedAt = new Date()
+        } else {
+          account.notified = true
+        }
+        await account.save()
+        console.log(
+          `✅ Notified user ${account.userLineId} for ${account.status} license.`
+        )
+      } catch (err) {
+        console.error(`❌ Failed to notify user ${account.userLineId}:`, err)
+        console.error(
+          `🔍 Debugging account data: ${JSON.stringify(account, null, 2)}`
+        )
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error in customer account notification interval:', error)
+  }
+  console.log('🔄 Interval job completed.')
+}, 10000) // 5 minutes
