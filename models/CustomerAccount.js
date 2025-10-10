@@ -1,5 +1,22 @@
 import mongoose from 'mongoose'
 
+// Function to parse Thai date string (DD/MM/YYYY HH:MM) to Date
+function parseThaiDate(dateString) {
+  if (!dateString || typeof dateString !== 'string') return dateString
+
+  const parts = dateString.split(' ')
+  const datePart = parts[0]
+  const timePart = parts[1] || '00:00'
+
+  const [day, month, thaiYear] = datePart.split('/').map(Number)
+  if (!day || !month || !thaiYear) return dateString
+
+  const gregorianYear = thaiYear - 543
+  const [hour, minute] = timePart.split(':').map(Number)
+
+  return new Date(gregorianYear, month - 1, day, hour || 0, minute || 0)
+}
+
 const customerAccountSchema = new mongoose.Schema(
   {
     user: {
@@ -12,7 +29,13 @@ const customerAccountSchema = new mongoose.Schema(
     },
     expireDate: {
       type: Date,
-      required: true
+      required: true,
+      set: function(value) {
+        if (typeof value === 'string') {
+          return parseThaiDate(value)
+        }
+        return value
+      }
     },
     status: {
       type: String,
