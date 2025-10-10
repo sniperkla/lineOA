@@ -14,7 +14,7 @@ dotenv.config()
 // Validate required environment variables
 if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
   console.error('❌ LINE_CHANNEL_ACCESS_TOKEN is required but not set')
-  console.error('Please check your .env file and set the correct value')
+  console.error('Plese check your .env file and set the correct value')
   process.exit(1)
 }
 
@@ -553,7 +553,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    text: 'ขอบคุณที่ใช้บริการครับ/ค่ะ',
                     margin: 'lg',
                     size: 'sm'
                   }
@@ -604,7 +604,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    text: 'ขอบคุณที่ใช้บริการครับ/ค่ะ',
                     margin: 'lg',
                     size: 'sm'
                   }
@@ -724,7 +724,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    text: 'ขอบคุณที่ใช้บริการครับ/ค่ะ',
                     margin: 'lg',
                     size: 'sm'
                   }
@@ -775,7 +775,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    text: 'ขอบคุณที่ใช้บริการครับ/ค่ะ',
                     margin: 'lg',
                     size: 'sm'
                   }
@@ -846,7 +846,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'ขอบคุณที่ใช้บริการครับ/คะ',
+                    text: 'ขอบคุณที่ใช้บริการครับ/ค่ะ',
                     margin: 'lg',
                     size: 'sm'
                   }
