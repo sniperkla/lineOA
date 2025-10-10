@@ -528,8 +528,32 @@ setInterval(async () => {
                     color: '#FF0000'
                   },
                   {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    text: 'License Key:',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: `${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    backgroundColor: '#F0F0F0',
+                    margin: 'sm',
+                    paddingAll: 'sm'
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: 'License ของคุณได้หมดอายุแล้ว',
                     margin: 'md',
                     wrap: true
                   },
@@ -568,8 +592,32 @@ setInterval(async () => {
                     color: '#FF6600'
                   },
                   {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    text: 'License Key:',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: `${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    backgroundColor: '#F0F0F0',
+                    margin: 'sm',
+                    paddingAll: 'sm'
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: 'License ของคุณถูกระงับชั่วคราว',
                     margin: 'md',
                     wrap: true
                   },
@@ -677,8 +725,32 @@ setInterval(async () => {
                     color: '#FF0000'
                   },
                   {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ได้หมดอายุแล้ว`,
+                    text: 'License Key:',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: `${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    backgroundColor: '#F0F0F0',
+                    margin: 'sm',
+                    paddingAll: 'sm'
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: 'License ของคุณได้หมดอายุแล้ว',
                     margin: 'md',
                     wrap: true
                   },
@@ -717,8 +789,32 @@ setInterval(async () => {
                     color: '#FF6600'
                   },
                   {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} ถูกระงับชั่วคราว`,
+                    text: 'License Key:',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: `${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    backgroundColor: '#F0F0F0',
+                    margin: 'sm',
+                    paddingAll: 'sm'
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: 'License ของคุณถูกระงับชั่วคราว',
                     margin: 'md',
                     wrap: true
                   },
@@ -777,8 +873,32 @@ setInterval(async () => {
                     color: '#FFA500'
                   },
                   {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
                     type: 'text',
-                    text: `License ของคุณสำหรับ ${account.license} จะหมดอายุในอีก ${daysLeft} วัน`,
+                    text: 'License Key:',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: `${account.license}`,
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000',
+                    backgroundColor: '#F0F0F0',
+                    margin: 'sm',
+                    paddingAll: 'sm'
+                  },
+                  {
+                    type: 'separator',
+                    margin: 'md'
+                  },
+                  {
+                    type: 'text',
+                    text: `License ของคุณจะหมดอายุในอีก ${daysLeft} วัน`,
                     margin: 'md',
                     wrap: true
                   },
