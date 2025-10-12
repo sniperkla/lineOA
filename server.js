@@ -395,7 +395,7 @@ async function handleMessageEvent(event, profile) {
             messages: [
               {
                 type: 'text',
-                text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้วครับ`
+                text: `✅ ข้อมูลของคุณถูกเชื่อมโยงกับบัญชีหมายเลข ${num} เรียบร้อยแล้ว`
               }
             ]
           })
@@ -785,6 +785,7 @@ setInterval(async () => {
           }
         } else if (account.status === 'nearly_expired') {
           let daysLeft = 3
+          let timeLeftText = ''
           if (account.expireDate) {
             const now = new Date()
             let expireDate = new Date(account.expireDate)
@@ -799,8 +800,22 @@ setInterval(async () => {
               expireDate.setDate(tempMonth + 1)
             }
             console.log('adjusted expireDate:', expireDate)
-            daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
+            const timeDiff = expireDate - now
+            daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
             console.log('daysLeft:', daysLeft)
+
+            // Calculate remaining time in hours and minutes
+            const hoursLeft = Math.floor(timeDiff / (1000 * 60 * 60))
+            const minutesLeft = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60))
+
+            if (hoursLeft > 24) {
+              timeLeftText = `${daysLeft} วัน`
+            } else if (hoursLeft > 0) {
+              timeLeftText = `${hoursLeft} ชม ${minutesLeft} นาที`
+            } else {
+              timeLeftText = `${minutesLeft} นาที`
+            }
+
             if (daysLeft > 3) daysLeft = 3
             if (daysLeft < 1) daysLeft = 1
           }
@@ -822,7 +837,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณจะหมดอายุในอีก ${daysLeft} วัน`,
+                    text: `License ของคุณจะหมดอายุในอีก ${timeLeftText}`,
                     margin: 'md',
                     wrap: true
                   },
