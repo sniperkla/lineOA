@@ -784,6 +784,15 @@ setInterval(async () => {
             }
           }
         } else if (account.status === 'nearly_expired') {
+          await CustomerAccount.updateOne(
+            { _id: account._id, status: 'nearly_expired' },
+            {
+              $set: {
+                lastNearlyExpiredNotifiedAt: new Date(),
+                notified: false
+              }
+            }
+          )
           let daysLeft = 3
           if (account.expireDate) {
             const now = new Date()
@@ -875,12 +884,7 @@ setInterval(async () => {
           const errorText = await response.text()
           throw new Error(`LINE API error: ${response.status} - ${errorText}`)
         }
-        if (account.status === 'nearly_expired') {
-          account.lastNearlyExpiredNotifiedAt = new Date()
-        } else {
-          account.notified = true
-        }
-        await account.save()
+
         console.log(
           `✅ Notified user ${account.userLineId} for ${account.status} license.`
         )
