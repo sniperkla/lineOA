@@ -902,3 +902,54 @@ setInterval(async () => {
   }
   console.log('🔄 Interval job completed.')
 }, 180000) // 3 minutes
+
+// CustomerAccount model (for reference)
+// const CustomerAccountSchema = new mongoose.Schema({
+//   accountNumber: {
+//     type: String,
+//     required: true,
+//     unique: true
+//   },
+//   userLineId: {
+//     type: String,
+//     required: true
+//   },
+//   license: {
+//     type: String,
+//     required: true
+//   },
+//   status: {
+//     type: String,
+//     enum: ['valid', 'expired', 'suspended', 'nearly_expired'],
+//     default: 'valid'
+//   },
+//   notified: {
+//     type: Boolean,
+//     default: false
+//   },
+//   lastNotifiedStatus: {
+//     type: String,
+//     enum: ['valid', 'expired', 'suspended', 'nearly_expired']
+//   },
+//   expireDate: {
+//     type: Date,
+//     required: true,
+//     validate: {
+//       validator: function(v) {
+//         return true; // Skip validation
+//       },
+//       message: 'Expire date validation skipped'
+//     },
+//     set: function(value) {
+//       if (typeof value === 'string') {
+//         return parseThaiDate(value);
+//       }
+//       return value;
+//     }
+//   },
+//   createdAt: {
+//     type: Date,
+//     default: Date.now
+//   },
+//   updatedAt: {
+//     type: Date,
