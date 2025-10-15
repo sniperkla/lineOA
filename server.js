@@ -511,6 +511,7 @@ setInterval(async () => {
         }
         let messageContent = {}
         if (account.status === 'expired') {
+          console.log('youre here')
           messageContent = {
             type: 'flex',
             altText: 'แจ้งเตือน: License หมดอายุ',
@@ -797,23 +798,48 @@ setInterval(async () => {
           }
           let daysLeft = 3
           if (account.expireDate) {
-            const now = new Date()
-            let expireDate = new Date(account.expireDate)
-            console.log('law expireDate:', account.expireDate)
-            // Adjust for Thai Buddhist calendar (subtract 543 years if year > 2500)
-            if (expireDate.getFullYear() > 2500) {
-              expireDate.setFullYear(expireDate.getFullYear() - 543)
-              // Swap month and day for correct DD/MM interpretation
-              const tempMonth = expireDate.getMonth()
-              const tempDate = expireDate.getDate()
-              expireDate.setMonth(tempDate - 1)
-              expireDate.setDate(tempMonth + 1)
+            // Parse expireDate if it's a string "DD/MM/YYYY HH:MM"
+            let expireDate
+            if (typeof account.expireDate === 'string') {
+              const parts = account.expireDate.split('/')
+              if (parts.length === 3) {
+                let [day, month, yearTime] = parts
+                const [year, time] = yearTime.split(' ')
+                const [hour, minute] = time.split(':')
+
+                let fullYear = parseInt(year)
+                if (fullYear > 2500) {
+                  fullYear -= 543 // Convert Thai year
+                }
+
+                expireDate = new Date(
+                  fullYear,
+                  parseInt(month) - 1,
+                  parseInt(day),
+                  parseInt(hour),
+                  parseInt(minute)
+                )
+
+                if (isNaN(expireDate.getTime())) {
+                  console.warn(
+                    `Invalid expireDate string: ${account.expireDate}`
+                  )
+                  expireDate = null
+                }
+              }
+            } else {
+              expireDate = new Date(account.expireDate)
             }
-            console.log('adjusted expireDate:', expireDate)
-            daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
-            console.log('daysLeft:', daysLeft)
-            if (daysLeft > 3) daysLeft = 3
-            if (daysLeft < 1) daysLeft = 1
+
+            if (expireDate) {
+              const now = new Date()
+              console.log('parsed expireDate:', expireDate)
+              const timeDiff = expireDate - now
+              daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+              console.log('daysLeft:', daysLeft)
+              if (daysLeft > 3) daysLeft = 3
+              if (daysLeft < 1) daysLeft = 1
+            }
           }
           messageContent = {
             type: 'flex',
@@ -901,55 +927,4 @@ setInterval(async () => {
     console.error('❌ Error in customer account notification interval:', error)
   }
   console.log('🔄 Interval job completed.')
-}, 180000) // 3 minutes
-
-// CustomerAccount model (for reference)
-// const CustomerAccountSchema = new mongoose.Schema({
-//   accountNumber: {
-//     type: String,
-//     required: true,
-//     unique: true
-//   },
-//   userLineId: {
-//     type: String,
-//     required: true
-//   },
-//   license: {
-//     type: String,
-//     required: true
-//   },
-//   status: {
-//     type: String,
-//     enum: ['valid', 'expired', 'suspended', 'nearly_expired'],
-//     default: 'valid'
-//   },
-//   notified: {
-//     type: Boolean,
-//     default: false
-//   },
-//   lastNotifiedStatus: {
-//     type: String,
-//     enum: ['valid', 'expired', 'suspended', 'nearly_expired']
-//   },
-//   expireDate: {
-//     type: Date,
-//     required: true,
-//     validate: {
-//       validator: function(v) {
-//         return true; // Skip validation
-//       },
-//       message: 'Expire date validation skipped'
-//     },
-//     set: function(value) {
-//       if (typeof value === 'string') {
-//         return parseThaiDate(value);
-//       }
-//       return value;
-//     }
-//   },
-//   createdAt: {
-//     type: Date,
-//     default: Date.now
-//   },
-//   updatedAt: {
-//     type: Date,
+}, 60000) // 3 minutes

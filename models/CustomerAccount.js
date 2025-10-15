@@ -1,22 +1,5 @@
 import mongoose from 'mongoose'
 
-// Function to parse Thai date string (DD/MM/YYYY HH:MM) to Date
-function parseThaiDate(dateString) {
-  if (!dateString || typeof dateString !== 'string') return dateString
-
-  const parts = dateString.split(' ')
-  const datePart = parts[0]
-  const timePart = parts[1] || '00:00'
-
-  const [day, month, thaiYear] = datePart.split('/').map(Number)
-  if (!day || !month || !thaiYear) return dateString
-
-  const gregorianYear = thaiYear - 543
-  const [hour, minute] = timePart.split(':').map(Number)
-
-  return new Date(gregorianYear, month - 1, day, hour || 0, minute || 0)
-}
-
 const customerAccountSchema = new mongoose.Schema(
   {
     user: {
@@ -28,14 +11,7 @@ const customerAccountSchema = new mongoose.Schema(
       required: true
     },
     expireDate: {
-      type: Date,
-      required: true,
-      set: function(value) {
-        if (typeof value === 'string') {
-          return parseThaiDate(value)
-        }
-        return value
-      }
+      type: String
     },
     status: {
       type: String,
@@ -43,24 +19,21 @@ const customerAccountSchema = new mongoose.Schema(
       default: 'valid'
     },
     platform: {
-      type: String,
-      required: true
+      type: String
     },
     accountNumber: {
       type: String,
       required: true
     },
     plan: {
-      type: Number,
-      required: true
+      type: Number
     },
     activatedAt: {
       type: Date,
       required: true
     },
     createdBy: {
-      type: String,
-      required: true
+      type: String
     },
     adminGenerated: {
       type: Boolean,
@@ -85,11 +58,5 @@ const customerAccountSchema = new mongoose.Schema(
 )
 
 // Pre-save hook to convert expireDate string to Date
-customerAccountSchema.pre('save', function(next) {
-  if (this.expireDate && typeof this.expireDate === 'string') {
-    this.expireDate = parseThaiDate(this.expireDate);
-  }
-  next();
-});
 
-export default mongoose.model('CustomerAccount', customerAccountSchema);
+export default mongoose.model('CustomerAccount', customerAccountSchema)
