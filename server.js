@@ -971,7 +971,7 @@ setInterval(async () => {
     console.error('❌ Error in customer account notification interval:', error)
   }
   console.log('🔄 Interval job completed.')
-}, 60000) // 3 minutes
+}, 180000) // 3 minutes
 
 function parseThaiDate(dateStr) {
   const [datePart, timePart] = dateStr.split(' ')
