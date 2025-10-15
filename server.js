@@ -785,25 +785,66 @@ setInterval(async () => {
           }
         } else if (account.status === 'nearly_expired') {
           let daysLeft = 3
-          if (account.expireDate) {
-            const now = new Date()
-            let expireDate = new Date(account.expireDate)
-            console.log('law expireDate:', account.expireDate)
-            // Adjust for Thai Buddhist calendar (subtract 543 years if year > 2500)
-            if (expireDate.getFullYear() > 2500) {
-              expireDate.setFullYear(expireDate.getFullYear() - 543)
-              // Swap month and day for correct DD/MM interpretation
-              const tempMonth = expireDate.getMonth()
-              const tempDate = expireDate.getDate()
-              expireDate.setMonth(tempDate - 1)
-              expireDate.setDate(tempMonth + 1)
+          let timeLeftText = ''
+          let expireDate
+
+          if (typeof account.expireDate === 'string') {
+            // Parse "DD/MM/YYYY HH:MM" with Thai year
+            try {
+              const [datePart, timePart] = account.expireDate.split(' ')
+              const [day, month, year] = datePart.split('/')
+              let gregorianYear = parseInt(year, 10)
+              if (gregorianYear > 2500) {
+                gregorianYear -= 543
+              }
+              const [hour, minute] = timePart.split(':')
+              expireDate = new Date(
+                gregorianYear,
+                parseInt(month, 10) - 1,
+                parseInt(day, 10),
+                parseInt(hour, 10),
+                parseInt(minute, 10)
+              )
+            } catch (err) {
+              console.error(
+                'Error parsing expireDate:',
+                account.expireDate,
+                err
+              )
+              expireDate = null
             }
-            console.log('adjusted expireDate:', expireDate)
-            daysLeft = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24))
-            console.log('daysLeft:', daysLeft)
+          } else if (account.expireDate) {
+            expireDate = new Date(account.expireDate)
+          }
+
+          if (expireDate && !isNaN(expireDate.getTime())) {
+            const now = new Date()
+            const timeDiff = expireDate - now
+            daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+
+            // Calculate remaining time in hours and minutes
+            const hoursLeft = Math.floor(timeDiff / (1000 * 60 * 60))
+            const minutesLeft = Math.floor(
+              (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+            )
+
+            if (hoursLeft > 24) {
+              timeLeftText = `${daysLeft} วัน`
+            } else if (hoursLeft > 0) {
+              timeLeftText = `${hoursLeft} ชม ${minutesLeft} นาที`
+            } else {
+              timeLeftText = `${minutesLeft} นาที`
+            }
+
             if (daysLeft > 3) daysLeft = 3
             if (daysLeft < 1) daysLeft = 1
+          } else {
+            // fallback if parsing fails
+            daysLeft = 3
+            timeLeftText = `${daysLeft} วัน`
           }
+
+          // Use timeLeftText in your messageContent
           messageContent = {
             type: 'flex',
             altText: 'แจ้งเตือน: License ใกล้หมดอายุ',
@@ -822,7 +863,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณจะหมดอายุในอีก ${daysLeft} วัน`,
+                    text: `License ของคุณจะหมดอายุในอีก ${timeLeftText}`,
                     margin: 'md',
                     wrap: true
                   },
@@ -855,6 +896,7 @@ setInterval(async () => {
             }
           }
         }
+
         console.log(
           `🔔 Notifying userLineId: ${account.userLineId} for account: ${account.accountNumber}`
         )
