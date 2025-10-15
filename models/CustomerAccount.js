@@ -84,4 +84,12 @@ const customerAccountSchema = new mongoose.Schema(
   }
 )
 
-export default mongoose.model('CustomerAccount', customerAccountSchema)
+// Pre-save hook to convert expireDate string to Date
+customerAccountSchema.pre('save', function(next) {
+  if (this.expireDate && typeof this.expireDate === 'string') {
+    this.expireDate = parseThaiDate(this.expireDate);
+  }
+  next();
+});
+
+export default mongoose.model('CustomerAccount', customerAccountSchema);
