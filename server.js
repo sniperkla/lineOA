@@ -841,6 +841,24 @@ setInterval(async () => {
               if (daysLeft < 1) daysLeft = 1
             }
           }
+          // Calculate time left in days, hours, and minutes
+          const now = new Date()
+          let expireDate
+          if (typeof account.expireDate === 'string') {
+            expireDate = parseThaiDate(account.expireDate)
+          } else {
+            expireDate = account.expireDate
+          }
+          const timeLeft = expireDate - now
+          if (timeLeft <= 0) {
+            // Handle expired case if needed, e.g., skip or show "Expired"
+            return
+          }
+          const totalMinutes = Math.floor(timeLeft / (1000 * 60))
+          const daysLefts = Math.floor(totalMinutes / (24 * 60))
+          const hoursLeft = Math.floor((totalMinutes % (24 * 60)) / 60)
+          const minutesLeft = totalMinutes % 60
+
           messageContent = {
             type: 'flex',
             altText: 'แจ้งเตือน: License ใกล้หมดอายุ',
@@ -859,9 +877,35 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: `License ของคุณจะหมดอายุในอีก ${daysLeft} วัน`,
-                    margin: 'md',
-                    wrap: true
+                    text: 'จะหมดอายุในอีก',
+                    weight: 'bold',
+                    size: 'md',
+                    color: '#000000'
+                  },
+                  {
+                    type: 'text',
+                    contents: [
+                      {
+                        type: 'span',
+                        text: `${daysLefts} วัน`,
+                        color: '#FF5555', // Highlight color for days
+                        weight: 'bold',
+                        size: 'md'
+                      },
+                      {
+                        type: 'span',
+                        text: '\n' // New line
+                      },
+                      {
+                        type: 'span',
+                        text: `${hoursLeft} ชม ${minutesLeft} นาที`,
+                        color: '#3399FF', // Highlight color for time
+                        weight: 'bold',
+                        size: 'md'
+                      }
+                    ],
+                    wrap: true,
+                    margin: 'md'
                   },
                   {
                     type: 'separator',
@@ -928,3 +972,11 @@ setInterval(async () => {
   }
   console.log('🔄 Interval job completed.')
 }, 60000) // 3 minutes
+
+function parseThaiDate(dateStr) {
+  const [datePart, timePart] = dateStr.split(' ')
+  const [day, month, year] = datePart.split('/').map(Number)
+  const gregorianYear = year - 543 // Convert Buddhist year to Gregorian
+  const [hour, minute] = timePart.split(':').map(Number)
+  return new Date(gregorianYear, month - 1, day, hour, minute)
+}
