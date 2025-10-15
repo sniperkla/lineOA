@@ -784,15 +784,17 @@ setInterval(async () => {
             }
           }
         } else if (account.status === 'nearly_expired') {
-          await CustomerAccount.updateOne(
-            { _id: account._id, status: 'nearly_expired' },
-            {
-              $set: {
-                lastNearlyExpiredNotifiedAt: new Date(),
-                notified: false
+          if (!account.lastNearlyExpiredNotifiedAt || !account.notified) {
+            await CustomerAccount.updateOne(
+              { _id: account._id, status: 'nearly_expired' },
+              {
+                $set: {
+                  lastNearlyExpiredNotifiedAt: new Date(),
+                  notified: false
+                }
               }
-            }
-          )
+            )
+          }
           let daysLeft = 3
           if (account.expireDate) {
             const now = new Date()
