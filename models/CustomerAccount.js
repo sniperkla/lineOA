@@ -2,19 +2,22 @@ import mongoose from 'mongoose'
 
 // Function to parse Thai date string (DD/MM/YYYY HH:MM) to Date
 function parseThaiDate(dateString) {
-  if (!dateString || typeof dateString !== 'string') return dateString
+  if (!dateString || typeof dateString !== 'string') return null;
 
-  const parts = dateString.split(' ')
-  const datePart = parts[0]
-  const timePart = parts[1] || '00:00'
+  const parts = dateString.split(' ');
+  const datePart = parts[0];
+  const timePart = parts[1] || '00:00';
 
-  const [day, month, thaiYear] = datePart.split('/').map(Number)
-  if (!day || !month || !thaiYear) return dateString
+  const [day, month, thaiYear] = datePart.split('/').map(Number);
+  if (!day || !month || !thaiYear) return null;
 
-  const gregorianYear = thaiYear - 543
-  const [hour, minute] = timePart.split(':').map(Number)
+  const gregorianYear = thaiYear - 543;
+  const [hour, minute] = timePart.split(':').map(Number);
 
-  return new Date(gregorianYear, month - 1, day, hour || 0, minute || 0)
+  const date = new Date(gregorianYear, month - 1, day, hour || 0, minute || 0);
+  if (isNaN(date.getTime())) return null; // Invalid date
+
+  return date;
 }
 
 const customerAccountSchema = new mongoose.Schema(
@@ -86,8 +89,11 @@ const customerAccountSchema = new mongoose.Schema(
 
 // Pre-save hook to convert expireDate string to Date
 customerAccountSchema.pre('save', function(next) {
+  console.log('Pre-save hook triggered for account:', this._id);
   if (this.expireDate && typeof this.expireDate === 'string') {
+    console.log('Converting expireDate string:', this.expireDate);
     this.expireDate = parseThaiDate(this.expireDate);
+    console.log('Converted expireDate:', this.expireDate);
   }
   next();
 });
