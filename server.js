@@ -877,7 +877,7 @@ setInterval(async () => {
                   },
                   {
                     type: 'text',
-                    text: 'จะหมดอายุในอีก',
+                    text: 'License ของคุณจะหมดอายุในอีก',
                     weight: 'bold',
                     size: 'md',
                     color: '#000000'
