@@ -371,8 +371,132 @@ async function handleUnfollowEvent(event) {
 async function handleMessageEvent(event, profile) {
   const userId = event.source.userId
   const messageText = event.message.text
+  const normalized = messageText.trim().toLowerCase()
+  let replied = false
 
   console.log('🔢 Extracted numbers from message:', userId)
+
+  // If user types "check", show time left for their linked account(s) as a Flex carousel
+  if (normalized === 'check') {
+    const accounts = await CustomerAccount.find({ userLineId: userId })
+    if (!accounts || accounts.length === 0) {
+      await lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: 'text',
+            text: 'ยังไม่มีบัญชีที่เชื่อมโยงกับคุณครับ\nกรุณาส่งหมายเลขบัญชีเพื่อเชื่อมโยงก่อนใช้งานคำสั่ง "check"'
+          }
+        ]
+      })
+      return
+    }
+
+    const maxBubbles = 10
+    const bubbles = []
+
+    for (const account of accounts.slice(0, maxBubbles)) {
+      let expireDate = null
+      if (!account.expireDate) {
+        // no expire date
+      } else if (typeof account.expireDate === 'string') {
+        expireDate = parseThaiDate(account.expireDate)
+      } else {
+        expireDate = new Date(account.expireDate)
+      }
+
+      let timeText = ''
+      if (!expireDate || isNaN(expireDate.getTime())) {
+        timeText = account.expireDate ? `ไม่สามารถแปลงวันที่: ${account.expireDate}` : 'ไม่ได้กำหนด'
+      } else {
+        const now = new Date()
+        const diff = expireDate - now
+        if (diff <= 0) {
+          timeText = 'หมดอายุแล้ว'
+        } else {
+          const totalMinutes = Math.floor(diff / (1000 * 60))
+          const daysLeft = Math.floor(totalMinutes / (24 * 60))
+          const hoursLeft = Math.floor((totalMinutes % (24 * 60)) / 60)
+          const minutesLeft = totalMinutes % 60
+          timeText = `${daysLeft} วัน ${hoursLeft} ชม ${minutesLeft} นาที`
+        }
+      }
+
+      const bubble = {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: `บัญชี ${account.accountNumber}`,
+              weight: 'bold',
+              size: 'md'
+            },
+            {
+              type: 'text',
+              text: `สถานะ: ${account.status || 'ไม่มี'}`,
+              margin: 'sm'
+            },
+            {
+              type: 'text',
+              text: `หมดอายุใน: ${timeText}`,
+              margin: 'sm'
+            },
+            {
+              type: 'text',
+              text: `License: ${account.license || 'ไม่มีข้อมูล'}`,
+              margin: 'md',
+              size: 'sm',
+              color: '#666666'
+            }
+          ]
+        }
+      }
+
+      bubbles.push(bubble)
+    }
+
+    if (accounts.length > maxBubbles) {
+      bubbles.push({
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: `แสดง ${maxBubbles}/${accounts.length} บัญชี`,
+              weight: 'bold',
+              size: 'md'
+            },
+            {
+              type: 'text',
+              text: 'หากต้องการดูทั้งหมด โปรดติดต่อทีมงานหรือเยี่ยมหน้าบริการเพื่อดูข้อมูลเพิ่มเติม',
+              wrap: true,
+              margin: 'md',
+              size: 'sm',
+              color: '#666666'
+            }
+          ]
+        }
+      })
+    }
+
+    const flexMessage = {
+      type: 'flex',
+      altText: `บัญชีที่เชื่อมโยง (${accounts.length})`,
+      contents: accounts.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }
+    }
+
+    await lineClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [flexMessage]
+    })
+
+    return
+  }
 
   // Extract numbers from user input and log if length > 4
   const matches = messageText.match(/\d+/g)
@@ -399,6 +523,7 @@ async function handleMessageEvent(event, profile) {
               }
             ]
           })
+          return
         }
       }
     }
