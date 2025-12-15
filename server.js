@@ -534,7 +534,8 @@ async function handleMessageEvent(event, profile) {
   try {
     const botInfoMessage = {
       type: 'text',
-      text: '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ'
+      text:
+        '🤖 ข้อความนี้ถูกตอบโดย LINE Bot อัตโนมัติ\n\nคำสั่งที่ใช้งานได้:\n- ส่งหมายเลขบัญชี เพื่อเชื่อมโยงบัญชีของคุณกับบอท\n- พิมพ์ "check" เพื่อตรวจสอบเวลาเหลือของบัญชีที่เชื่อมโยง\n\nหากต้องการความช่วยเหลือเพิ่มเติม โปรดติดต่อทีมงาน'
     }
     await lineClient.replyMessage({
       replyToken: event.replyToken,
